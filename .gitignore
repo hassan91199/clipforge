@@ -1,1 +1,15 @@
 .docs
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# secrets
+.env
+
+# pipeline output (generated media, not source)
+output/
+*.mp4
+*.wav
+*.mp3
