@@ -8,6 +8,7 @@ __pycache__/
 # secrets
 .env
 client_secret*.json
+.clipforge_youtube_token.json
 
 # pipeline output (generated media, not source)
 output/
