@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+.env.*
+.clipforge_youtube_token.json
+.docs
+opencode.json
+__pycache__
+**/__pycache__
+*.pyc
