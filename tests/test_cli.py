@@ -138,6 +138,11 @@ class RunPipelineTests(unittest.TestCase):
         self.assertIsNone(summary["publish_response"])
         self.assertFalse((self.run_dir / "publish.json").exists())
 
+    def test_summary_reports_total_seconds(self):
+        summary = self._run()
+        self.assertGreater(summary["total_seconds"], 0)
+        self.assertLess(summary["total_seconds"], 5)
+
     def test_stage_failure_propagates_and_skips_publish(self):
         def broken_images(config, prompts, output_dir, **kwargs):
             raise RuntimeError("FLUX down")
