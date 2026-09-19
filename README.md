@@ -24,6 +24,23 @@ docker run --rm --env-file .env clipforge \
 
 Secrets stay on the host: `.env` is passed with `--env-file` at runtime and is excluded from the image by `.dockerignore`.
 
+## Full pipeline
+
+```bash
+python -m clipforge "Why the sky is blue, for curious kids"   # render + schedule upload +24h
+python -m clipforge "..." --no-upload                          # render only
+python -m clipforge "..." --publish-now                        # publish immediately, not scheduled
+```
+
+Run artifacts land in `./runs/run-<timestamp>/`: script.json, voiceover.mp3, captions.json (+.srt), images/, short.mp4, publish.json.
+
+Via Docker:
+
+```bash
+docker run --rm --env-file .env -v "$PWD/runs:/app/runs" clipforge \
+    python -m clipforge "Why the sky is blue, for curious kids" --no-upload
+```
+
 ## Tests
 
 ```bash
