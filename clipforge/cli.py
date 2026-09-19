@@ -47,6 +47,7 @@ def run_pipeline(
 
     Returns a summary dict with artifact paths and the publish response.
     """
+    pipeline_start = time.monotonic()
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,12 +112,16 @@ def run_pipeline(
             print(f"  scheduled: {publish_at.isoformat()}", flush=True)
         print(f"  {watch_url}", flush=True)
 
+    total_seconds = time.monotonic() - pipeline_start
+    print(f"[pipeline] total {total_seconds:.1f}s", flush=True)
+
     return {
         "run_dir": output_dir,
         "video_path": video_path,
         "title": script.title,
         "publish_response": publish_response,
         "watch_url": watch_url,
+        "total_seconds": total_seconds,
     }
 
 
