@@ -11,6 +11,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
 
 from clipforge.config import load_config
 from clipforge.pipeline.captions import generate_timed_captions
@@ -24,14 +25,6 @@ DEFAULT_NUM_IMAGES = 3
 DEFAULT_PUBLISH_IN_HOURS = 24
 
 
-def _timed(label: str, fn, *args, **kwargs):
-    print(f"[{label}] started", flush=True)
-    start = time.monotonic()
-    result = fn(*args, **kwargs)
-    print(f"[{label}] done in {time.monotonic() - start:.1f}s", flush=True)
-    return result
-
-
 def run_pipeline(
     config,
     prompt: str,
@@ -42,16 +35,33 @@ def run_pipeline(
     upload: bool = True,
     publish_now: bool = False,
     youtube=None,
+    on_event: Callable[[dict], None] | None = None,
 ) -> dict:
     """Run prompt -> script -> voiceover -> captions -> images -> render -> publish.
 
-    Returns a summary dict with artifact paths and the publish response.
+    Returns a summary dict with artifact paths and the publish response. When
+    `on_event` is given, progress is reported as event dicts: stage_start,
+    stage_done (with `seconds`), note, pipeline_done (with `total_seconds`).
     """
     pipeline_start = time.monotonic()
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    script = _timed("script", generate_script, config, prompt, video_duration)
+    def _emit(event: dict) -> None:
+        if on_event is not None:
+            on_event(event)
+
+    def _stage(label: str, fn, *args, **kwargs):
+        print(f"[{label}] started", flush=True)
+        _emit({"event": "stage_start", "stage": label})
+        start = time.monotonic()
+        result = fn(*args, **kwargs)
+        elapsed = time.monotonic() - start
+        print(f"[{label}] done in {elapsed:.1f}s", flush=True)
+        _emit({"event": "stage_done", "stage": label, "seconds": elapsed})
+        return result
+
+    script = _stage("script", generate_script, config, prompt, video_duration)
     (output_dir / "script.json").write_text(
         json.dumps(
             {"title": script.title, "caption": script.caption, "script": script.script},
@@ -59,15 +69,16 @@ def run_pipeline(
         )
     )
     print(f'  title: {script.title}', flush=True)
+    _emit({"event": "note", "message": f"title: {script.title}"})
 
-    voiceover_path = _timed(
+    voiceover_path = _stage(
         "voiceover", generate_voiceover, config, script.script, output_dir / "voiceover.mp3"
     )
-    _timed(
+    _stage(
         "captions", generate_timed_captions, config, voiceover_path, output_dir / "captions.json"
     )
 
-    prompts = _timed(
+    prompts = _stage(
         "image-prompts",
         generate_image_prompts,
         config,
@@ -76,9 +87,9 @@ def run_pipeline(
     )
     (output_dir / "prompts.json").write_text(json.dumps(prompts, indent=2))
     images_dir = output_dir / "images"
-    image_paths = _timed("images", generate_images, config, prompts, images_dir)
+    image_paths = _stage("images", generate_images, config, prompts, images_dir)
 
-    video_path = _timed(
+    video_path = _stage(
         "render",
         render_video,
         image_paths,
@@ -93,7 +104,7 @@ def run_pipeline(
         publish_at = None
         if not publish_now:
             publish_at = datetime.now(timezone.utc) + timedelta(hours=publish_in_hours)
-        publish_response = _timed(
+        publish_response = _stage(
             "publish",
             publish_video,
             config=config,
@@ -110,10 +121,13 @@ def run_pipeline(
         )
         if publish_at:
             print(f"  scheduled: {publish_at.isoformat()}", flush=True)
+            _emit({"event": "note", "message": f"scheduled: {publish_at.isoformat()}"})
         print(f"  {watch_url}", flush=True)
+        _emit({"event": "note", "message": watch_url})
 
     total_seconds = time.monotonic() - pipeline_start
     print(f"[pipeline] total {total_seconds:.1f}s", flush=True)
+    _emit({"event": "pipeline_done", "total_seconds": total_seconds})
 
     return {
         "run_dir": output_dir,

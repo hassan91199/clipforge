@@ -41,6 +41,20 @@ docker run --rm --env-file .env -v "$PWD/runs:/app/runs" clipforge \
     python -m clipforge "Why the sky is blue, for curious kids" --no-upload
 ```
 
+## Web UI
+
+Same pipeline behind a browser page, with a live timing row per stage and the
+total elapsed time at the end:
+
+```bash
+.venv/bin/streamlit run clipforge/ui.py
+```
+
+Controls: prompt box, scene-image count, target length, and a
+"Also schedule on YouTube" checkbox (off by default — uploads only happen when
+explicitly ticked). The finished short plays in the page; run artifacts land in
+the same `runs/run-<timestamp>/` layout as the CLI.
+
 ## Tests
 
 ```bash
