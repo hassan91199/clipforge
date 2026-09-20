@@ -26,6 +26,9 @@ trap cleanup EXIT
 
 $COMPOSE up -d --wait
 
+# Never let the LocalStack run touch real-AWS state or the S3 backend.
+rm -rf .terraform terraform.tfstate terraform.tfstate.backup
+
 tf fmt -check -recursive
 tf init -input=false -backend=false
 tf validate
