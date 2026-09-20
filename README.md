@@ -85,6 +85,7 @@ docker run --rm clipforge          # same gate inside the container
 
 Layers: unit tests per stage module (fakes, no API cost), integration tests
 for the full pipeline orchestration, AppTest browser tests driving the
-Streamlit UI in-process, and the container gate for env parity. See
-[AGENTS.md](AGENTS.md) for the testing conventions and the test-first
-workflow every change follows.
+Streamlit UI in-process, an opt-in Playwright tier that boots the real app in
+a real browser (`sh scripts/browser_test.sh`), and the container gate for env
+parity. See [AGENTS.md](AGENTS.md) for the testing conventions and the
+test-first workflow every change follows.

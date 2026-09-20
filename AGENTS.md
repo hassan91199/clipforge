@@ -23,6 +23,7 @@ assertion, a coverage floor, or a lint rule to make a change fit.
 | Unit | `tests/test_*.py` | in-process, stage fakes | free | Each stage module's logic in isolation |
 | Integration | `tests/test_cli.py` (`FakeStages`), `tests/test_ui.py` (event contract) | full `run_pipeline` with all-fake stages | free | Orchestration: stage order, artifacts, event stream, failure propagation |
 | App/browser | `tests/test_app.py` | Streamlit AppTest driving `clipforge/ui.py` | free | Widget interaction and rendered output of the UI |
+| Browser (real) | `tests/test_browser.py` | Playwright vs a live Streamlit server (`scripts/browser_test.sh`) | free | What AppTest cannot see: websocket streaming into the DOM, video element really loading, blur-commit |
 | Container | `docker run --rm clipforge` | same suite inside the image | free | Env parity: deps, entrypoint, permissions |
 | Real smoke | manual, or CF-16 CI job | live APIs | ~$0.10/run | Explicitly requested before a release; never part of the default suite |
 
@@ -35,6 +36,12 @@ Rules that keep the suite hermetic:
   stub `clipforge.cli.run_pipeline` (not `clipforge.ui.run_pipeline`);
   `set_value()` needs an explicit `.run()` to mimic browser commit-on-blur;
   `st.empty()` placeholder content is not recorded, prefer direct `st.error`.
+- The two browser tiers split by what only a real browser can prove: AppTest
+  owns the interaction contract (fast, runs in every gate); Playwright owns
+  rendering and websocket behavior (video duration > 0, stage rows arriving
+  incrementally). Playwright is opt-in via `scripts/browser_test.sh`, kept
+  out of the default gate and out of the Docker image (browser binaries
+  ~400MB); pin `playwright==1.63.0` when CI wires it up (CF-16).
 - A tiny mp4 fixture is generated with `ffmpeg -f lavfi testsrc` (no fixture
   files in the repo).
 
@@ -42,6 +49,7 @@ Rules that keep the suite hermetic:
 
 ```sh
 .venv/bin/python scripts/test.sh   # lint + format + full suite under coverage
+sh scripts/browser_test.sh         # Playwright tier (needs one-time chromium install)
 docker run --rm clipforge          # same gate inside the container
 .venv/bin/ruff format clipforge tests scripts   # format
 ```
