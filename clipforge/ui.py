@@ -20,6 +20,7 @@ import streamlit as st
 
 from clipforge.cli import DEFAULT_NUM_IMAGES, DEFAULT_PUBLISH_IN_HOURS, run_pipeline
 from clipforge.config import Config, demo_config, load_config
+from clipforge.quota import check_and_increment
 
 
 class StageTracker:
@@ -155,6 +156,11 @@ def render_app() -> None:
         disabled=not prompt.strip() or config is None or config_error is not None,
     )
     if not generate_clicked:
+        return
+
+    allowed, used = check_and_increment()
+    if not allowed:
+        st.error(f"Daily demo limit reached ({used} runs today) - please try again tomorrow.")
         return
 
     tracker = StageTracker()

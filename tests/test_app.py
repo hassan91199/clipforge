@@ -195,6 +195,18 @@ class AppTests(unittest.TestCase):
             self._type_prompt_and_generate()
             self.assertIn("pipeline failed: FLUX down", at.error[0].value)
 
+    def test_daily_cap_blocks_generate_in_demo_mode(self):
+        with patch("clipforge.quota.check_and_increment", return_value=(False, 100)):
+            with self._app(config_present=False) as at:
+                at.text_input[0].set_value("sk-demo").run()
+                at.text_input[1].set_value("r8-demo").run()
+                submit = [b for b in at.button if b.label == "Use these keys"][0]
+                submit.click().run()
+                at.text_area[0].set_value("prompt").run()
+                generate = [b for b in at.button if b.label == "Generate video"][0]
+                generate.click().run()
+        self.assertIn("Daily demo limit reached (100 runs today)", at.error[0].value)
+
     def test_run_artifacts_expander_lists_files(self):
         with self._app() as at:
             self._type_prompt_and_generate()
