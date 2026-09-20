@@ -30,8 +30,9 @@ tf() {
 cleanup() {
     $COMPOSE down -v >/dev/null 2>&1 || true
     # terraform leaves root-owned files; delete the temp dir as root too.
-    docker run --rm -v "$(dirname "$TMP")":/hosttmp hashicorp/terraform:1.16 \
-        rm -rf "/hosttmp/$(basename "$TMP")"
+    docker run --rm --entrypoint sh \
+        -v "$(dirname "$TMP")":/hosttmp hashicorp/terraform:1.16 \
+        -c "rm -rf /hosttmp/$(basename "$TMP")"
 }
 trap cleanup EXIT
 
