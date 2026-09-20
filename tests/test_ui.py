@@ -5,8 +5,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from clipforge.cli import run_pipeline
+from clipforge.config import demo_config
 from clipforge.pipeline.script_gen import VideoScript
-from clipforge.ui import StageTracker, check_config, default_output_dir
+from clipforge.ui import StageTracker, check_config, default_output_dir, operator_mode
 
 
 def _events(callback, stages):
@@ -68,6 +69,28 @@ class DefaultOutputDirTests(unittest.TestCase):
         run_dir = default_output_dir()
         self.assertEqual(run_dir.parent.name, "runs")
         self.assertTrue(run_dir.name.startswith("run-"))
+
+
+class DemoModeTests(unittest.TestCase):
+    """Public-demo mode: visitor keys, publish excluded."""
+
+    def test_demo_config_carries_only_provider_keys(self):
+        config = demo_config("sk-demo", "r8-demo")
+        self.assertEqual(config.openai_api_key, "sk-demo")
+        self.assertEqual(config.replicate_api_token, "r8-demo")
+        self.assertEqual(config.google_client_id, "")
+        self.assertEqual(config.google_client_secret, "")
+        self.assertEqual(config.google_redirect_uri, "")
+
+    def test_operator_mode_true_only_with_provider_keys(self):
+        with patch("clipforge.ui.load_config") as load_config:
+            load_config.return_value.openai_api_key = "sk"
+            load_config.return_value.replicate_api_token = "r8"
+            self.assertTrue(operator_mode())
+        with patch("clipforge.ui.load_config") as load_config:
+            load_config.return_value.openai_api_key = ""
+            load_config.return_value.replicate_api_token = "r8"
+            self.assertFalse(operator_mode())
 
 
 class PipelineEventTests(unittest.TestCase):

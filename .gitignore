@@ -21,3 +21,7 @@ output/
 .coverage
 runs/
 opencode.json
+
+# terraform runtime
+infra/.terraform/
+infra/*.tfstate*

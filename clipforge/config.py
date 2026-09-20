@@ -35,3 +35,19 @@ def load_config() -> Config:
         google_client_secret=os.environ.get("GOOGLE_CLIENT_SECRET", ""),
         google_redirect_uri=os.environ.get("GOOGLE_REDIRECT_URI", ""),
     )
+
+
+def demo_config(openai_api_key: str, replicate_api_token: str) -> Config:
+    """Public-demo config: visitor-supplied keys; Google/publish excluded.
+
+    The demo never takes public writes to a YouTube channel, and visitors
+    would each need their own OAuth client, so the publish path is not part
+    of the public demo.
+    """
+    return Config(
+        openai_api_key=openai_api_key,
+        replicate_api_token=replicate_api_token,
+        google_client_id="",
+        google_client_secret="",
+        google_redirect_uri="",
+    )

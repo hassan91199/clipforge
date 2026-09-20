@@ -1,0 +1,52 @@
+name: deploy
+
+# Manual, approval-gated deploy of the public demo to AWS App Runner.
+# Requires repo secrets/vars (set once with the AWS account owner):
+#   - AWS_ROLE_ARN / AWS_REGION  (or AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY)
+#   - vars.DEMO_IMAGE_REPO       ECR repository URI for the demo image
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push demo image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPO: clipforge-demo
+        run: |
+          docker build -t "$REGISTRY/$REPO:latest" -t "$REGISTRY/$REPO:${GITHUB_SHA::8}" .
+          docker push "$REGISTRY/$REPO:latest"
+          docker push "$REGISTRY/$REPO:${GITHUB_SHA::8}"
+
+      - name: Terraform deploy
+        working-directory: infra
+        env:
+          TF_VAR_quota_bucket_name: clipforge-demo-quota
+          TF_VAR_image_uri: ${{ steps.ecr.outputs.registry }}/clipforge-demo:${GITHUB_SHA::8}
+        run: |
+          # S3 backend bucket (idempotent; name matches the IAM policy prefix)
+          aws s3 mb "s3://clipforge-demo-quota-tfstate" 2>/dev/null || true
+          terraform init -input=false
+          terraform apply -auto-approve
+          terraform output -raw service_url
+
+      - name: Smoke the deployed URL
+        run: |
+          URL=$(terraform -chdir=infra output -raw service_url)
+          curl -fsS --max-time 60 "$URL/_stcore/health"

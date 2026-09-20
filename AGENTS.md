@@ -51,6 +51,7 @@ Rules that keep the suite hermetic:
 .venv/bin/python scripts/test.sh   # lint + format + full suite under coverage
 sh scripts/browser_test.sh         # Playwright tier (needs one-time chromium install)
 docker run --rm clipforge          # same gate inside the container
+sh scripts/infra_localstack.sh     # terraform gate (fmt/validate + quota apply on LocalStack)
 .venv/bin/ruff format clipforge tests scripts   # format
 ```
 

@@ -19,7 +19,8 @@ if _REPO_ROOT not in sys.path:
 import streamlit as st
 
 from clipforge.cli import DEFAULT_NUM_IMAGES, DEFAULT_PUBLISH_IN_HOURS, run_pipeline
-from clipforge.config import Config, load_config
+from clipforge.config import Config, demo_config, load_config
+from clipforge.quota import check_and_increment
 
 
 class StageTracker:
@@ -73,6 +74,39 @@ def default_output_dir() -> Path:
     return Path("runs") / f"run-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
 
+def operator_mode() -> bool:
+    """True when provider keys come from the operator's env (.env).
+
+    No env keys means the public demo: visitors bring their own keys via the
+    sidebar form and YouTube publishing stays out of the demo path.
+    """
+    config = load_config()
+    return bool(config.openai_api_key and config.replicate_api_token)
+
+
+def demo_keys_config() -> Config | None:
+    """BYO-keys sidebar form for the public demo.
+
+    Keys live in st.session_state only - never written to disk or logs. The
+    form submit triggers a rerun, so the stored config is returned on the
+    next script run.
+    """
+    if "demo_keys" in st.session_state:
+        return st.session_state["demo_keys"]
+    with st.sidebar:
+        st.caption(
+            "Public demo - bring your own API keys. "
+            "They stay in this browser session and are never stored."
+        )
+        with st.form("demo_keys_form"):
+            openai_key = st.text_input("OpenAI API key", type="password")
+            replicate_token = st.text_input("Replicate API token", type="password")
+            submitted = st.form_submit_button("Use these keys")
+    if submitted and openai_key.strip() and replicate_token.strip():
+        st.session_state["demo_keys"] = demo_config(openai_key.strip(), replicate_token.strip())
+    return st.session_state.get("demo_keys")
+
+
 def render_app() -> None:
     st.set_page_config(page_title="ClipForge", layout="centered")
     st.title("ClipForge")
@@ -81,31 +115,52 @@ def render_app() -> None:
         "uploaded and scheduled on YouTube."
     )
 
-    config, config_error = check_config()
-    if config_error:
-        st.sidebar.error(config_error)
+    config: Config | None = None
+    config_error: str | None = None
+    upload_available = False
+    if operator_mode():
+        config, config_error = check_config()
+        upload_available = config_error is None
+        if config_error:
+            st.sidebar.error(config_error)
+    else:
+        config = demo_keys_config()
 
     with st.sidebar:
         st.header("Options")
         num_images = st.slider("Scene images", 1, 6, DEFAULT_NUM_IMAGES)
         video_duration = st.select_slider("Target length", options=["30", "30-60", "60-90"])
-        upload = st.checkbox("Also schedule on YouTube", value=False)
+        upload = False
         publish_now = False
         publish_in_hours = DEFAULT_PUBLISH_IN_HOURS
-        if upload:
-            publish_now = st.checkbox("Publish immediately", value=False)
-            publish_in_hours = st.number_input(
-                "Schedule hours ahead", min_value=1, max_value=168, value=DEFAULT_PUBLISH_IN_HOURS
-            )
+        if upload_available:
+            upload = st.checkbox("Also schedule on YouTube", value=False)
+            if upload:
+                publish_now = st.checkbox("Publish immediately", value=False)
+                publish_in_hours = st.number_input(
+                    "Schedule hours ahead",
+                    min_value=1,
+                    max_value=168,
+                    value=DEFAULT_PUBLISH_IN_HOURS,
+                )
+        else:
+            st.caption("YouTube publishing is disabled in the public demo.")
 
     prompt = st.text_area(
         "Video prompt", height=110, placeholder="Why the sky is blue, explained for curious kids"
     )
 
     generate_clicked = st.button(
-        "Generate video", type="primary", disabled=not prompt.strip() or config_error is not None
+        "Generate video",
+        type="primary",
+        disabled=not prompt.strip() or config is None or config_error is not None,
     )
     if not generate_clicked:
+        return
+
+    allowed, used = check_and_increment()
+    if not allowed:
+        st.error(f"Daily demo limit reached ({used} runs today) - please try again tomorrow.")
         return
 
     tracker = StageTracker()
