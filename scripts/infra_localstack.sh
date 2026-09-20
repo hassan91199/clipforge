@@ -27,7 +27,10 @@ trap cleanup EXIT
 $COMPOSE up -d --wait
 
 # Never let the LocalStack run touch real-AWS state or the S3 backend.
-rm -rf .terraform terraform.tfstate terraform.tfstate.backup
+# Clean through the container: the earlier terraform steps leave root-owned
+# files the host user cannot delete.
+docker run --rm -v "$PWD":/workspace -w /workspace hashicorp/terraform:1.9 \
+    sh -c "rm -rf .terraform terraform.tfstate terraform.tfstate.backup"
 
 tf fmt -check -recursive
 tf init -input=false -backend=false
