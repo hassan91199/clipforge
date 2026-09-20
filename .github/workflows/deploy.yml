@@ -40,6 +40,8 @@ jobs:
           TF_VAR_quota_bucket_name: clipforge-demo-quota
           TF_VAR_image_uri: ${{ steps.ecr.outputs.registry }}/clipforge-demo:${GITHUB_SHA::8}
         run: |
+          # S3 backend bucket (idempotent; name matches the IAM policy prefix)
+          aws s3 mb "s3://clipforge-demo-quota-tfstate" 2>/dev/null || true
           terraform init -input=false
           terraform apply -auto-approve
           terraform output -raw service_url

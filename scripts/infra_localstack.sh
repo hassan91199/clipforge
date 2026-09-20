@@ -27,7 +27,7 @@ trap cleanup EXIT
 $COMPOSE up -d --wait
 
 tf fmt -check -recursive
-tf init -input=false
+tf init -input=false -backend=false
 tf validate
 # Targeted apply: only the LocalStack-supported part of the tree.
 tf apply -auto-approve -target=module.quota
