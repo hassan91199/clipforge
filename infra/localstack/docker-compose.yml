@@ -1,0 +1,15 @@
+services:
+  localstack:
+    # 4.x is the last community-edition line that starts without an auth
+    # token; `latest` (2026.8+) refuses to boot without a license.
+    image: localstack/localstack:4.13
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,iam,ecr,sts
+      DEBUG: "0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"'"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
