@@ -39,11 +39,14 @@ jobs:
           docker push "$REGISTRY/$REPO:latest"
           docker push "$REGISTRY/$REPO:${GITHUB_SHA::8}"
 
+      - name: Compute image tag
+        run: echo "TAG=${GITHUB_SHA::8}" >> "$GITHUB_ENV"
+
       - name: Terraform deploy
         working-directory: infra
         env:
           TF_VAR_quota_bucket_name: clipforge-demo-quota
-          TF_VAR_image_uri: ${{ steps.ecr.outputs.registry }}/clipforge-demo:${GITHUB_SHA::8}
+          TF_VAR_image_uri: ${{ steps.ecr.outputs.registry }}/clipforge-demo:${{ env.TAG }}
         run: |
           # S3 backend bucket (idempotent; name matches the IAM policy prefix)
           aws s3 mb "s3://clipforge-demo-quota-tfstate" 2>/dev/null || true
