@@ -21,11 +21,9 @@ import time
 import unittest
 from pathlib import Path
 
-from playwright.sync_api import expect
-
 RUNNER_ENV = os.environ.get("RUN_BROWSER_TESTS") == "1"
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
 
     HAS_PLAYWRIGHT = True
 except ImportError:  # pragma: no cover - depends on local install
