@@ -94,7 +94,8 @@ class RunPipelineTests(unittest.TestCase):
         self._run()
         stage_order = [call[0] for call in self.fake.calls]
         self.assertEqual(
-            stage_order, ["script", "voiceover", "captions", "prompts", "images", "render", "publish"]
+            stage_order,
+            ["script", "voiceover", "captions", "prompts", "images", "render", "publish"],
         )
 
     def test_prompt_flows_to_script_generation(self):
@@ -105,7 +106,15 @@ class RunPipelineTests(unittest.TestCase):
         self._run(num_images=2)
         self.assertEqual(
             sorted(p.name for p in self.run_dir.iterdir()),
-            ["captions.json", "images", "prompts.json", "publish.json", "script.json", "short.mp4", "voiceover.mp3"],
+            [
+                "captions.json",
+                "images",
+                "prompts.json",
+                "publish.json",
+                "script.json",
+                "short.mp4",
+                "voiceover.mp3",
+            ],
         )
         script = json.loads((self.run_dir / "script.json").read_text())
         self.assertEqual(script["title"], "Test title")
@@ -120,7 +129,9 @@ class RunPipelineTests(unittest.TestCase):
         self.assertEqual(publish_kwargs["title"], "Test title")
         self.assertEqual(publish_kwargs["description"], "Test caption")
         self.assertEqual(summary["watch_url"], "https://www.youtube.com/watch?v=vidABC123")
-        self.assertEqual(json.loads((self.run_dir / "publish.json").read_text())["video_id"], "vidABC123")
+        self.assertEqual(
+            json.loads((self.run_dir / "publish.json").read_text())["video_id"], "vidABC123"
+        )
 
     def test_publish_in_hours_moves_schedule(self):
         self._run(publish_in_hours=48)
@@ -190,9 +201,10 @@ class CliArgTests(unittest.TestCase):
 
 class MainTests(unittest.TestCase):
     def test_main_success_returns_zero_and_wires_args(self):
-        with patch("clipforge.cli.load_config") as load_config, patch(
-            "clipforge.cli.run_pipeline"
-        ) as run_pipeline:
+        with (
+            patch("clipforge.cli.load_config"),
+            patch("clipforge.cli.run_pipeline") as run_pipeline,
+        ):
             run_pipeline.return_value = {}
             code = main(["prompt text", "--num-images", "2", "--no-upload"])
         self.assertEqual(code, 0)
@@ -202,15 +214,17 @@ class MainTests(unittest.TestCase):
         self.assertFalse(kwargs["upload"])
 
     def test_main_failure_returns_one(self):
-        with patch("clipforge.cli.load_config"), patch(
-            "clipforge.cli.run_pipeline", side_effect=RuntimeError("boom")
+        with (
+            patch("clipforge.cli.load_config"),
+            patch("clipforge.cli.run_pipeline", side_effect=RuntimeError("boom")),
         ):
             self.assertEqual(main(["p"]), 1)
 
     def test_main_default_output_dir_under_runs(self):
-        with patch("clipforge.cli.load_config"), patch(
-            "clipforge.cli.run_pipeline", return_value={}
-        ) as run_pipeline:
+        with (
+            patch("clipforge.cli.load_config"),
+            patch("clipforge.cli.run_pipeline", return_value={}) as run_pipeline,
+        ):
             main(["p"])
         run_dir = run_pipeline.call_args[0][2]
         self.assertEqual(run_dir.parent.name, "runs")

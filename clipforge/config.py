@@ -24,9 +24,7 @@ class Config:
     def require(self, *names: str) -> None:
         missing = [name for name in names if not getattr(self, name)]
         if missing:
-            raise RuntimeError(
-                f"Missing required config: {', '.join(missing)} (check .env)"
-            )
+            raise RuntimeError(f"Missing required config: {', '.join(missing)} (check .env)")
 
 
 def load_config() -> Config:

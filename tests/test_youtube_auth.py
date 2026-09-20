@@ -45,10 +45,13 @@ class GetCredentialsTests(unittest.TestCase):
         self.config = _config()
 
     def test_missing_token_file_runs_consent_flow_and_saves_token(self):
-        with patch("clipforge.publish.youtube_auth.Credentials") as _, patch(
-            "clipforge.publish.youtube_auth.InstalledAppFlow"
-        ) as flow_cls:
-            flow_cls.from_client_config.return_value.run_local_server.return_value = FakeCreds(valid=True)
+        with (
+            patch("clipforge.publish.youtube_auth.Credentials") as _,
+            patch("clipforge.publish.youtube_auth.InstalledAppFlow") as flow_cls,
+        ):
+            flow_cls.from_client_config.return_value.run_local_server.return_value = FakeCreds(
+                valid=True
+            )
             creds = get_credentials(self.config, self.token_path)
         self.assertTrue(creds.valid)
         flow_cls.from_client_config.assert_called_once()
@@ -57,9 +60,10 @@ class GetCredentialsTests(unittest.TestCase):
 
     def test_valid_cached_token_is_returned_without_network_or_consent(self):
         _write_token(self.token_path, json.dumps({"cached": True}))
-        with patch("clipforge.publish.youtube_auth.Credentials") as creds_cls, patch(
-            "clipforge.publish.youtube_auth.InstalledAppFlow"
-        ) as flow_cls:
+        with (
+            patch("clipforge.publish.youtube_auth.Credentials") as creds_cls,
+            patch("clipforge.publish.youtube_auth.InstalledAppFlow") as flow_cls,
+        ):
             creds_cls.from_authorized_user_file.return_value = FakeCreds(valid=True)
             get_credentials(self.config, self.token_path)
         flow_cls.from_client_config.assert_not_called()
@@ -67,10 +71,12 @@ class GetCredentialsTests(unittest.TestCase):
 
     def test_expired_token_refreshes_instead_of_reconsenting(self):
         _write_token(self.token_path, json.dumps({"cached": True}))
-        refreshed = FakeCreds(valid=True)
-        with patch("clipforge.publish.youtube_auth.Credentials") as creds_cls, patch(
-            "clipforge.publish.youtube_auth.InstalledAppFlow"
-        ) as flow_cls, patch("clipforge.publish.youtube_auth.Request"):
+        FakeCreds(valid=True)
+        with (
+            patch("clipforge.publish.youtube_auth.Credentials") as creds_cls,
+            patch("clipforge.publish.youtube_auth.InstalledAppFlow") as flow_cls,
+            patch("clipforge.publish.youtube_auth.Request"),
+        ):
             cached = FakeCreds(valid=False, expired=True)
             cached.refresh = MagicMock()  # succeeds silently
             creds_cls.from_authorized_user_file.return_value = cached
@@ -86,9 +92,11 @@ class GetCredentialsTests(unittest.TestCase):
 
     def test_revoked_refresh_token_falls_back_to_consent_flow(self):
         _write_token(self.token_path, json.dumps({"cached": True}))
-        with patch("clipforge.publish.youtube_auth.Credentials") as creds_cls, patch(
-            "clipforge.publish.youtube_auth.InstalledAppFlow"
-        ) as flow_cls, patch("clipforge.publish.youtube_auth.Request"):
+        with (
+            patch("clipforge.publish.youtube_auth.Credentials") as creds_cls,
+            patch("clipforge.publish.youtube_auth.InstalledAppFlow") as flow_cls,
+            patch("clipforge.publish.youtube_auth.Request"),
+        ):
             stale = FakeCreds(valid=False, expired=True)
             creds_cls.from_authorized_user_file.return_value = stale
             fresh = FakeCreds(valid=True)
@@ -101,9 +109,10 @@ class GetCredentialsTests(unittest.TestCase):
 
     def test_corrupt_token_file_falls_back_to_consent_flow(self):
         _write_token(self.token_path, "not json at all")
-        with patch("clipforge.publish.youtube_auth.Credentials") as creds_cls, patch(
-            "clipforge.publish.youtube_auth.InstalledAppFlow"
-        ) as flow_cls:
+        with (
+            patch("clipforge.publish.youtube_auth.Credentials") as creds_cls,
+            patch("clipforge.publish.youtube_auth.InstalledAppFlow") as flow_cls,
+        ):
             creds_cls.from_authorized_user_file.side_effect = ValueError("bad file")
             fresh = FakeCreds(valid=True)
             flow_cls.from_client_config.return_value.run_local_server.return_value = fresh

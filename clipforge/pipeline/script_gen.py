@@ -42,7 +42,8 @@ def generate_script(config: Config, prompt: str, video_duration: str = "30") -> 
         "1) 'script' - narration text only, no scene directions, camera cues, or "
         "formatting, just continuous spoken text a voice actor reads aloud. "
         "2) 'title' - a short, attention-grabbing YouTube Shorts title (under 100 characters). "
-        "3) 'caption' - a YouTube description/caption (1-3 sentences, may include relevant hashtags). "
+        "3) 'caption' - a YouTube description/caption "
+        "(1-3 sentences, may include relevant hashtags). "
         "Keep the language simple, concise, and engaging from start to finish."
     )
 

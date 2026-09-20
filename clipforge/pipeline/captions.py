@@ -69,9 +69,7 @@ def transcribe(config: Config, audio_path: Path, max_retries: int = DEFAULT_MAX_
             last_error = error
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY_SECONDS)
-    raise RuntimeError(
-        f"Whisper transcription failed after {max_retries} attempts: {last_error}"
-    )
+    raise RuntimeError(f"Whisper transcription failed after {max_retries} attempts: {last_error}")
 
 
 def split_sentences(text: str) -> list[str]:
@@ -88,7 +86,7 @@ def segment_sentences(sentences: list[str], max_len: int = DEFAULT_MAX_CAPTION_S
                 segments.append(sentence[i:].strip())
                 break
 
-            chunk = sentence[i:i + max_len + 1]
+            chunk = sentence[i : i + max_len + 1]
             split_index = max_len
             if not chunk[max_len].isspace() and chunk[max_len - 1].isspace():
                 split_index = max_len - 1
@@ -99,7 +97,7 @@ def segment_sentences(sentences: list[str], max_len: int = DEFAULT_MAX_CAPTION_S
                 if last_space != -1:
                     split_index = last_space
 
-            segments.append(sentence[i:i + split_index].strip())
+            segments.append(sentence[i : i + split_index].strip())
             i += split_index
             while i < len(sentence) and sentence[i] == " ":
                 i += 1
@@ -133,7 +131,10 @@ def map_segments_to_time(
         word_idx = 1
         i = matched_indices[0] + 1 if matched_indices else 0
         while i < len(words_queue) and word_idx < len(cleaned_words):
-            if words_queue[i]["word"].strip(string.punctuation).lower() == cleaned_words[word_idx].lower():
+            if (
+                words_queue[i]["word"].strip(string.punctuation).lower()
+                == cleaned_words[word_idx].lower()
+            ):
                 matched_indices.append(i)
                 word_idx += 1
             i += 1

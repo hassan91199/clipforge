@@ -68,7 +68,7 @@ def run_pipeline(
             indent=2,
         )
     )
-    print(f'  title: {script.title}', flush=True)
+    print(f"  title: {script.title}", flush=True)
     _emit({"event": "note", "message": f"title: {script.title}"})
 
     voiceover_path = _stage(
@@ -117,7 +117,10 @@ def run_pipeline(
         video_id = publish_response["id"]
         watch_url = f"https://www.youtube.com/watch?v={video_id}"
         (output_dir / "publish.json").write_text(
-            json.dumps({"video_id": video_id, "watch_url": watch_url, "response": publish_response}, indent=2)
+            json.dumps(
+                {"video_id": video_id, "watch_url": watch_url, "response": publish_response},
+                indent=2,
+            )
         )
         if publish_at:
             print(f"  scheduled: {publish_at.isoformat()}", flush=True)

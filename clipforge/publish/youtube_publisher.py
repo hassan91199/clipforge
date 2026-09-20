@@ -17,7 +17,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 from clipforge.config import Config
@@ -60,10 +59,13 @@ def publish_video(
     if not title:
         raise ValueError("Title is empty")
     if len(title) > TITLE_MAX_CHARS:
-        raise ValueError(f"Title exceeds YouTube's {TITLE_MAX_CHARS}-char limit ({len(title)} chars)")
+        raise ValueError(
+            f"Title exceeds YouTube's {TITLE_MAX_CHARS}-char limit ({len(title)} chars)"
+        )
     if len(description) > DESCRIPTION_MAX_CHARS:
         raise ValueError(
-            f"Description exceeds YouTube's {DESCRIPTION_MAX_CHARS}-char limit ({len(description)} chars)"
+            f"Description exceeds YouTube's {DESCRIPTION_MAX_CHARS}-char limit "
+            f"({len(description)} chars)"
         )
     if not video_path.is_file():
         raise FileNotFoundError(f"Video file not found: {video_path}")

@@ -75,7 +75,16 @@ docker run --rm -p 8501:8501 --env-file .env \
 
 ## Tests
 
+One gate runs lint, format and the whole suite (109 tests) under a 95%
+coverage floor:
+
 ```bash
-.venv/bin/python -m unittest discover -s tests   # local venv
-docker run --rm clipforge                        # container
+.venv/bin/python scripts/test.sh   # local venv
+docker run --rm clipforge          # same gate inside the container
 ```
+
+Layers: unit tests per stage module (fakes, no API cost), integration tests
+for the full pipeline orchestration, AppTest browser tests driving the
+Streamlit UI in-process, and the container gate for env parity. See
+[AGENTS.md](AGENTS.md) for the testing conventions and the test-first
+workflow every change follows.

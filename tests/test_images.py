@@ -4,8 +4,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import requests
-
 from clipforge.config import Config
 from clipforge.pipeline.images import (
     generate_image,
@@ -95,13 +93,14 @@ class TestGenerateImage(unittest.TestCase):
         create_kwargs = mock_request.call_args_list[0].kwargs
         self.assertEqual(
             create_args,
-            ("POST", "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"),
+            (
+                "POST",
+                "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
+            ),
         )
         self.assertEqual(create_kwargs["json"]["input"]["prompt"], "an octopus scene")
         self.assertEqual(create_kwargs["json"]["input"]["aspect_ratio"], "9:16")
-        self.assertEqual(
-            create_kwargs["headers"]["Authorization"], "Bearer test-replicate-token"
-        )
+        self.assertEqual(create_kwargs["headers"]["Authorization"], "Bearer test-replicate-token")
         self.assertEqual(
             mock_request.call_args_list[1].args,
             ("GET", "https://api.replicate.com/v1/predictions/pred-123"),
@@ -124,7 +123,6 @@ class TestGenerateImage(unittest.TestCase):
             self.assertEqual(output_path.read_bytes(), b"png-bytes")
 
         self.assertEqual(mock_get.call_args.args[0], "https://img.example/y.png")
-
 
     @patch("clipforge.pipeline.images.time.sleep")
     @patch("clipforge.pipeline.images.requests.get")

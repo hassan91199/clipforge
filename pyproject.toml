@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["runs", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# ui.py bootstraps the repo root onto sys.path before importing the package.
+"clipforge/ui.py" = ["E402"]
+
+[tool.coverage.run]
+source = ["clipforge"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95

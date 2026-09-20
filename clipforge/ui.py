@@ -7,7 +7,6 @@ prints, so CF-10's measurement stays the single source of truth.
 """
 
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -51,9 +50,7 @@ class StageTracker:
 
     def done_stages(self) -> list[tuple[str, float]]:
         return [
-            (stage, row["seconds"])
-            for stage, row in self.stages.items()
-            if row["status"] == "done"
+            (stage, row["seconds"]) for stage, row in self.stages.items() if row["status"] == "done"
         ]
 
 
@@ -114,7 +111,6 @@ def render_app() -> None:
     tracker = StageTracker()
     output_dir = default_output_dir()
     stage_slots: dict[str, object] = {}
-    status_box = st.empty()
     progress_bar = st.progress(0.0, text="starting...")
     stages_box = st.container()
 
@@ -148,11 +144,11 @@ def render_app() -> None:
             on_event=handle_event,
         )
     except Exception as error:
-        status_box.error(f"pipeline failed: {error}")
+        st.error(f"pipeline failed: {error}")
         return
 
     progress_bar.progress(1.0, text="done")
-    status_box.success(f"{summary['title']} - {summary['total_seconds']:.1f}s total")
+    st.success(f"{summary['title']} - {summary['total_seconds']:.1f}s total")
 
     if summary["watch_url"]:
         st.markdown(f"Watch URL: {summary['watch_url']}")

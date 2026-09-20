@@ -1,5 +1,8 @@
 # ClickUp task workflow (ClipForge)
 
+Code-change conventions (test-first workflow, test layers, style) live in
+[AGENTS.md](AGENTS.md) — follow them for every change in this repo.
+
 Tasks for this project live in the ClickUp list **proj-clipforge**
 (`list_id: 1100390000016137`, under Space "Hassan's Space" > Folder "Portfolio
 Project") — same pattern as **proj-swiftreels** (`list_id: 901807349061`) and
