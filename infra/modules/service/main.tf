@@ -71,6 +71,9 @@ resource "aws_apprunner_service" "demo" {
 
       image_configuration {
         port = "8501"
+        # The image's default CMD runs the test suite (docker run --rm
+        # clipforge = gate); App Runner must start the UI instead.
+        start_command = "ui"
 
         runtime_environment_variables = {
           DEMO_BUCKET      = var.quota_bucket
