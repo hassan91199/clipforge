@@ -22,9 +22,7 @@ class StageTrackerTests(unittest.TestCase):
     def test_events_populate_stage_rows_in_order(self):
         tracker = StageTracker()
         _events(tracker.handle, ["script", "voiceover"])
-        self.assertEqual(
-            [stage for stage, _ in tracker.done_stages()], ["script", "voiceover"]
-        )
+        self.assertEqual([stage for stage, _ in tracker.done_stages()], ["script", "voiceover"])
         self.assertEqual(tracker.done_stages()[0], ("script", 1.5))
 
     def test_notes_collected_and_total_set(self):
@@ -81,17 +79,15 @@ class PipelineEventTests(unittest.TestCase):
         self.run_dir = Path(self.tmp.name) / "run"
 
     def _run(self, callback, upload=True):
-        with patch("clipforge.cli.generate_script") as fake_script, patch(
-            "clipforge.cli.generate_voiceover"
-        ) as fake_voiceover, patch("clipforge.cli.generate_timed_captions") as fake_captions, patch(
-            "clipforge.cli.generate_image_prompts"
-        ) as fake_prompts, patch(
-            "clipforge.cli.generate_images"
-        ) as fake_images, patch(
-            "clipforge.cli.render_video"
-        ) as fake_render, patch(
-            "clipforge.cli.publish_video"
-        ) as fake_publish:
+        with (
+            patch("clipforge.cli.generate_script") as fake_script,
+            patch("clipforge.cli.generate_voiceover") as fake_voiceover,
+            patch("clipforge.cli.generate_timed_captions") as fake_captions,
+            patch("clipforge.cli.generate_image_prompts") as fake_prompts,
+            patch("clipforge.cli.generate_images") as fake_images,
+            patch("clipforge.cli.render_video") as fake_render,
+            patch("clipforge.cli.publish_video") as fake_publish,
+        ):
             fake_script.return_value = VideoScript(title="T", caption="C", script="Narration.")
             fake_voiceover.side_effect = lambda config, text, path, **kw: (
                 path.write_bytes(b"mp3"),
@@ -119,7 +115,10 @@ class PipelineEventTests(unittest.TestCase):
         self._run(events.append)
         started = [e["stage"] for e in events if e["event"] == "stage_start"]
         done = [e["stage"] for e in events if e["event"] == "stage_done"]
-        self.assertEqual(started, ["script", "voiceover", "captions", "image-prompts", "images", "render", "publish"])
+        self.assertEqual(
+            started,
+            ["script", "voiceover", "captions", "image-prompts", "images", "render", "publish"],
+        )
         self.assertEqual(done, started)
         for event in events:
             if event["event"] == "stage_done":

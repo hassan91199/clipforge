@@ -166,9 +166,7 @@ class TestAddCaptions(unittest.TestCase):
         self.assertIn(f"fontfile='{font_path}'", filters[1])
         self.assertIn("fontcolor=#FFFFFF:fontsize=35", filters[1])
         self.assertIn("x=(w-text_w)/2:y=h-text_h-(h*0.5)", filters[1])
-        self.assertIn(
-            "alpha='if(lt(t,0.5),0,if(lt(t,0.6),(t-0.5)/0.1,1))'", filters[1]
-        )
+        self.assertIn("alpha='if(lt(t,0.5),0,if(lt(t,0.6),(t-0.5)/0.1,1))'", filters[1])
         self.assertIn("borderw=6:bordercolor=#000000", filters[1])
         self.assertIn("enable='between(t,0.5,2.0)'", filters[1])
         self.assertIn("NEXT\\: LINE\\, OK\\?", filters[2])
@@ -201,7 +199,10 @@ class TestMuxAudio(unittest.TestCase):
         mux_audio(Path("video.mp4"), Path("voice.mp3"), Path("final.mp4"))
 
         command = mock_run.call_args.args[0]
-        flags = lambda flag: [i for i, value in enumerate(command) if value == flag]
+
+        def flags(flag):
+            return [i for i, value in enumerate(command) if value == flag]
+
         self.assertEqual(command[0], "ffmpeg")
         self.assertEqual(command[flags("-i")[0] + 1], "video.mp4")
         self.assertEqual(command[flags("-i")[1] + 1], "voice.mp3")
@@ -254,9 +255,7 @@ class TestLoadCaptions(unittest.TestCase):
             timed_captions, duration = load_captions(captions_path)
 
             self.assertEqual(duration, 8.5)
-            self.assertEqual(
-                timed_captions, [((0.0, 2.0), "one"), ((2.0, 8.5), "two")]
-            )
+            self.assertEqual(timed_captions, [((0.0, 2.0), "one"), ((2.0, 8.5), "two")])
 
 
 class TestRenderVideo(unittest.TestCase):
@@ -325,7 +324,9 @@ class TestRenderVideo(unittest.TestCase):
 
         with self.assertRaises(RuntimeError) as context:
             render_video(
-                [Path("scene_00.png")], Path("voice.mp3"), Path("captions.json"),
+                [Path("scene_00.png")],
+                Path("voice.mp3"),
+                Path("captions.json"),
                 Path("out.mp4"),
             )
 

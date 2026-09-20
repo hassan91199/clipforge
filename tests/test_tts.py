@@ -37,7 +37,9 @@ class TestGenerateVoiceover(unittest.TestCase):
         self.assertEqual(called_kwargs["headers"]["Authorization"], "Bearer test-key")
         self.assertEqual(called_kwargs["json"]["voice"], "alloy")
         self.assertEqual(called_kwargs["json"]["model"], "tts-1")
-        self.assertEqual(called_kwargs["json"]["input"], "Did you know octopuses have three hearts?")
+        self.assertEqual(
+            called_kwargs["json"]["input"], "Did you know octopuses have three hearts?"
+        )
 
     def test_generate_voiceover_requires_api_key(self):
         config = _config()

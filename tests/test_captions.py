@@ -61,7 +61,9 @@ class TestTranscribe(unittest.TestCase):
             analysis = transcribe(_config(), Path(audio_file.name))
 
         self.assertEqual(analysis["duration"], 3.51)
-        self.assertEqual(analysis["text"], "Octopuses have three hearts. Two pump blood to the gills.")
+        self.assertEqual(
+            analysis["text"], "Octopuses have three hearts. Two pump blood to the gills."
+        )
         self.assertEqual(analysis["words"][0], {"word": "Octopuses", "start": 0.01, "end": 0.86})
         self.assertEqual(len(analysis["words"]), 10)
 

@@ -54,9 +54,7 @@ FFPROBE_BINARY = "ffprobe"
 
 def _run_ffmpeg(args: list[str], error_context: str) -> None:
     try:
-        subprocess.run(
-            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
-        )
+        subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     except subprocess.CalledProcessError as error:
         stderr = error.stderr.decode(errors="replace").strip()
         raise RuntimeError(f"{error_context}: {stderr}") from error
@@ -66,9 +64,12 @@ def probe_duration(media_path: Path) -> float:
     """Return the duration of an audio/video file in seconds via ffprobe."""
     command = [
         FFPROBE_BINARY,
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
         str(media_path),
     ]
     try:
@@ -124,14 +125,22 @@ def create_zoomed_clip(
 
     command = [
         FFMPEG_BINARY,
-        "-loop", "1",
-        "-framerate", str(RENDER_FPS),
-        "-i", str(image_path),
-        "-vf", f"{chosen_effect},setsar=1/1,format=yuv420p",
-        "-t", str(duration),
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-pix_fmt", "yuv420p",
+        "-loop",
+        "1",
+        "-framerate",
+        str(RENDER_FPS),
+        "-i",
+        str(image_path),
+        "-vf",
+        f"{chosen_effect},setsar=1/1,format=yuv420p",
+        "-t",
+        str(duration),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
         "-y",
         str(output_path),
     ]
@@ -146,18 +155,22 @@ def concat_clips(clip_paths: list[Path], output_path: Path) -> Path:
 
     with tempfile.TemporaryDirectory() as temp_dir:
         list_path = Path(temp_dir) / "clips.txt"
-        list_path.write_text(
-            "".join(f"file '{path}'\n" for path in clip_paths), encoding="utf-8"
-        )
+        list_path.write_text("".join(f"file '{path}'\n" for path in clip_paths), encoding="utf-8")
 
         command = [
             FFMPEG_BINARY,
-            "-f", "concat",
-            "-safe", "0",
-            "-i", str(list_path),
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-pix_fmt", "yuv420p",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_path),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-pix_fmt",
+            "yuv420p",
             "-y",
             str(output_path),
         ]
@@ -232,12 +245,18 @@ def add_captions(
 
     command = [
         FFMPEG_BINARY,
-        "-i", str(video_path),
-        "-vf", ",".join(filters),
-        "-c:v", "libx264",
-        "-preset", "medium",
-        "-pix_fmt", "yuv420p",
-        "-b:v", "2M",
+        "-i",
+        str(video_path),
+        "-vf",
+        ",".join(filters),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-pix_fmt",
+        "yuv420p",
+        "-b:v",
+        "2M",
         "-y",
         str(output_path),
     ]
@@ -249,13 +268,20 @@ def mux_audio(video_path: Path, audio_path: Path, output_path: Path) -> Path:
     """Combine a video with a voiceover audio track, trimming to the shorter stream."""
     command = [
         FFMPEG_BINARY,
-        "-i", str(video_path),
-        "-i", str(audio_path),
-        "-map", "0:v",
-        "-map", "1:a",
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-b:a", "192k",
+        "-i",
+        str(video_path),
+        "-i",
+        str(audio_path),
+        "-map",
+        "0:v",
+        "-map",
+        "1:a",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
         "-shortest",
         "-y",
         str(output_path),
@@ -270,8 +296,7 @@ def load_captions(
     """Load the CF-5 captions JSON as timed captions plus the voiceover duration."""
     data = json.loads(Path(captions_path).read_text(encoding="utf-8"))
     timed_captions = [
-        ((caption["start"], caption["end"]), caption["text"])
-        for caption in data["timed_captions"]
+        ((caption["start"], caption["end"]), caption["text"]) for caption in data["timed_captions"]
     ]
     return timed_captions, float(data["duration"])
 
