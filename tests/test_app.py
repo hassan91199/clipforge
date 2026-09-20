@@ -168,10 +168,27 @@ class AppTests(unittest.TestCase):
         with self._app() as at:
             self.assertTrue(at.button[0].disabled)
 
-    def test_missing_config_shows_sidebar_error_and_disables_generate(self):
+    def test_demo_mode_shows_keys_form_and_disables_generate(self):
         with self._app(config_present=False) as at:
-            self.assertIn("openai_api_key", at.sidebar.error[0].value)
-            self.assertTrue(at.button[0].disabled)
+            labels = [box.label for box in at.text_input]
+            self.assertIn("OpenAI API key", labels)
+            self.assertIn("Replicate API token", labels)
+            generate = [b for b in at.button if b.label == "Generate video"][0]
+            self.assertTrue(generate.disabled)
+
+    def test_demo_keys_submit_enables_generate_without_upload(self):
+        with self._app(config_present=False) as at:
+            at.text_input[0].set_value("sk-demo").run()
+            at.text_input[1].set_value("r8-demo").run()
+            submit = [b for b in at.button if b.label == "Use these keys"][0]
+            submit.click().run()
+            at.text_area[0].set_value("Why is the sky blue, for kids").run()
+            generate = [b for b in at.button if b.label == "Generate video"][0]
+            self.assertFalse(generate.disabled)
+            generate.click().run()
+            self.assertIn("Fake title - 10.0s total", _all_text(at))
+            # publishing is excluded from the public demo path
+            self.assertNotIn("Also schedule on YouTube", [c.label for c in at.checkbox])
 
     def test_pipeline_failure_shows_error_message(self):
         with self._app(side_effect=RuntimeError("FLUX down")) as at:
