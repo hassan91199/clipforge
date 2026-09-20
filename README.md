@@ -75,7 +75,7 @@ docker run --rm -p 8501:8501 --env-file .env \
 
 ## Tests
 
-One gate runs lint, format and the whole suite (109 tests) under a 95%
+One gate runs lint, format and the whole suite (121 tests) under a 95%
 coverage floor:
 
 ```bash
@@ -89,3 +89,24 @@ Streamlit UI in-process, an opt-in Playwright tier that boots the real app in
 a real browser (`sh scripts/browser_test.sh`), and the container gate for env
 parity. See [AGENTS.md](AGENTS.md) for the testing conventions and the
 test-first workflow every change follows.
+
+## Public demo deployment (AWS App Runner)
+
+The public demo runs the same Docker image on AWS App Runner (0.25 vCPU /
+1 GB, ~$5/mo ceiling) with visitors bringing their own API keys — no operator
+secrets are deployed, YouTube publishing is excluded from the demo path, and
+a daily run cap (S3 counter) bounds abuse. Infrastructure is Terraform:
+
+- `infra/modules/quota` — S3 counter bucket + lifecycle (LocalStack-testable)
+- `infra/modules/service` — App Runner service, autoscaling, IAM
+- CI validates the LocalStack-supported parts on every change; `terraform
+  validate` + `fmt` cover the rest:
+
+```bash
+sh scripts/infra_localstack.sh   # LocalStack gate (fmt + validate + apply quota)
+```
+
+Deploys are manual and approval-gated via the `deploy` GitHub Actions
+workflow (build → ECR push → terraform apply → health-check smoke); see
+`.docs/cf16_deployment_research.md` for the cost analysis and option
+comparison.
