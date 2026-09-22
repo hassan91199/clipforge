@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from clipforge.cli import run_pipeline
 from clipforge.config import demo_config
 from clipforge.pipeline.script_gen import VideoScript
-from clipforge.ui import StageTracker, check_config, default_output_dir, operator_mode
+from clipforge.ui import StageTracker, check_config, client_ip, default_output_dir, operator_mode
 
 
 def _events(callback, stages):
@@ -69,6 +69,19 @@ class DefaultOutputDirTests(unittest.TestCase):
         run_dir = default_output_dir()
         self.assertEqual(run_dir.parent.name, "runs")
         self.assertTrue(run_dir.name.startswith("run-"))
+
+
+class ClientIpTests(unittest.TestCase):
+    """Cloud Run's front end sets X-Forwarded-For; no header means no proxy."""
+
+    def test_reads_first_hop_of_forwarded_chain(self):
+        fake_context = MagicMock(headers={"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
+        with patch("clipforge.ui.st.context", fake_context):
+            self.assertEqual(client_ip(), "1.2.3.4")
+
+    def test_no_header_returns_none(self):
+        with patch("clipforge.ui.st.context", MagicMock(headers={})):
+            self.assertIsNone(client_ip())
 
 
 class DemoModeTests(unittest.TestCase):

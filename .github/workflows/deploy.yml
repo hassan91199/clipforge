@@ -1,9 +1,10 @@
 name: deploy
 
-# Manual, approval-gated deploy of the public demo to AWS App Runner.
-# Requires repo secrets/vars (set once with the AWS account owner):
-#   - AWS_ROLE_ARN / AWS_REGION  (or AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY)
-#   - vars.DEMO_IMAGE_REPO       ECR repository URI for the demo image
+# Manual, approval-gated deploy of the public demo to Google Cloud Run.
+# Requires repo secrets/vars (set once with the GCP project owner):
+#   - secrets.GCP_SA_KEY   JSON key for clipforge-deploy@clip-forge-508022...
+#   - vars.GCP_PROJECT_ID  e.g. clip-forge-508022
+#   - vars.GCP_REGION      e.g. us-central1
 on:
   workflow_dispatch:
 
@@ -14,47 +15,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Log in to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
         with:
-          terraform_version: "1.16.3"
-
-      - name: Build and push demo image
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO: clipforge-demo
-        run: |
-          docker build -t "$REGISTRY/$REPO:latest" -t "$REGISTRY/$REPO:${GITHUB_SHA::8}" .
-          docker push "$REGISTRY/$REPO:latest"
-          docker push "$REGISTRY/$REPO:${GITHUB_SHA::8}"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
 
       - name: Compute image tag
         run: echo "TAG=${GITHUB_SHA::8}" >> "$GITHUB_ENV"
 
-      - name: Terraform deploy
-        working-directory: infra
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build and push demo image
         env:
-          TF_VAR_quota_bucket_name: clipforge-demo-quota
-          TF_VAR_image_uri: ${{ steps.ecr.outputs.registry }}/clipforge-demo:${{ env.TAG }}
+          IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/clipforge-demo/clipforge
         run: |
-          # S3 backend bucket (idempotent; name matches the IAM policy prefix)
-          aws s3 mb "s3://clipforge-demo-quota-tfstate" 2>/dev/null || true
-          terraform init -input=false
-          terraform apply -auto-approve
-          terraform output -raw service_url
+          docker build -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        env:
+          IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/clipforge-demo/clipforge
+        run: |
+          # --session-affinity pins a browser session to one instance - without it,
+          # the request that fetches the generated video can land on a different
+          # instance than the one that rendered it, 404ing an empty player.
+          gcloud run deploy clipforge-demo \
+            --image="$IMAGE:$TAG" \
+            --region="${{ vars.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=2 \
+            --session-affinity \
+            --port=8501 \
+            --command="docker-entrypoint.sh" \
+            --args="ui" \
+            --service-account="clipforge-demo-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --set-env-vars="DEMO_BUCKET=clipforge-demo-quota-508022"
+          echo "url=$(gcloud run services describe clipforge-demo --region=${{ vars.GCP_REGION }} --format='value(status.url)')" >> "$GITHUB_OUTPUT"
 
       - name: Smoke the deployed URL
-        run: |
-          URL=$(terraform -chdir=infra output -raw service_url)
-          curl -fsS --max-time 60 "$URL/_stcore/health"
+        run: curl -fsS --max-time 60 "${{ steps.deploy.outputs.url }}/_stcore/health"
