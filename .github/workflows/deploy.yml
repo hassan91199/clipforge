@@ -1,10 +1,12 @@
 name: deploy
 
-# Manual, approval-gated deploy of the public demo to Google Cloud Run.
+# Manual, approval-gated deploy of the demo (Streamlit) and API (FastAPI,
+# CF-20) services to Google Cloud Run, built from the same image.
 # Requires repo secrets/vars (set once with the GCP project owner):
-#   - secrets.GCP_SA_KEY   JSON key for clipforge-deploy@clip-forge-508022...
-#   - vars.GCP_PROJECT_ID  e.g. clip-forge-508022
-#   - vars.GCP_REGION      e.g. us-central1
+#   - secrets.GCP_SA_KEY    JSON key for clipforge-deploy@clip-forge-508022...
+#   - vars.GCP_PROJECT_ID   e.g. clip-forge-508022
+#   - vars.GCP_REGION       e.g. us-central1
+#   - vars.FRONTEND_ORIGIN  the Vercel frontend's origin, for CORS (CF-21)
 on:
   workflow_dispatch:
 
@@ -63,3 +65,29 @@ jobs:
 
       - name: Smoke the deployed URL
         run: curl -fsS --max-time 60 "${{ steps.deploy.outputs.url }}/_stcore/health"
+
+      - name: Deploy API to Cloud Run
+        id: deploy-api
+        env:
+          IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/clipforge-demo/clipforge
+        run: |
+          # Same image as clipforge-demo above, just a different entrypoint mode -
+          # the FastAPI backend (CF-20) that CF-21's Next.js frontend calls.
+          gcloud run deploy clipforge-api \
+            --image="$IMAGE:$TAG" \
+            --region="${{ vars.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=2 \
+            --session-affinity \
+            --port=8080 \
+            --command="docker-entrypoint.sh" \
+            --args="api" \
+            --service-account="clipforge-demo-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --set-env-vars="DEMO_BUCKET=clipforge-demo-quota-508022" \
+            --update-env-vars="FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}"
+          echo "url=$(gcloud run services describe clipforge-api --region=${{ vars.GCP_REGION }} --format='value(status.url)')" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke the deployed API URL
+        run: curl -fsS --max-time 60 "${{ steps.deploy-api.outputs.url }}/api/health"
