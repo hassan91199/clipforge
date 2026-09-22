@@ -74,6 +74,19 @@ def default_output_dir() -> Path:
     return Path("runs") / f"run-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
 
+def client_ip() -> str | None:
+    """Best-effort caller IP from the request headers Cloud Run's front end sets.
+
+    X-Forwarded-For can carry a proxy chain; the first entry is the original
+    client. No header (local `streamlit run`, no DEMO_BUCKET) means no
+    per-IP check - the global cap still applies.
+    """
+    forwarded = st.context.headers.get("X-Forwarded-For")
+    if not forwarded:
+        return None
+    return forwarded.split(",")[0].strip()
+
+
 def operator_mode() -> bool:
     """True when provider keys come from the operator's env (.env).
 
@@ -158,7 +171,7 @@ def render_app() -> None:
     if not generate_clicked:
         return
 
-    allowed, used = check_and_increment()
+    allowed, used = check_and_increment(client_ip=client_ip())
     if not allowed:
         st.error(f"Daily demo limit reached ({used} runs today) - please try again tomorrow.")
         return
