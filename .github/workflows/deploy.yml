@@ -43,6 +43,9 @@ jobs:
         env:
           IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/clipforge-demo/clipforge
         run: |
+          # --session-affinity pins a browser session to one instance - without it,
+          # the request that fetches the generated video can land on a different
+          # instance than the one that rendered it, 404ing an empty player.
           gcloud run deploy clipforge-demo \
             --image="$IMAGE:$TAG" \
             --region="${{ vars.GCP_REGION }}" \
@@ -50,6 +53,7 @@ jobs:
             --allow-unauthenticated \
             --min-instances=0 \
             --max-instances=2 \
+            --session-affinity \
             --port=8501 \
             --command="docker-entrypoint.sh" \
             --args="ui" \
