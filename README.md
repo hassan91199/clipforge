@@ -73,6 +73,31 @@ docker run --rm -p 8501:8501 --env-file .env \
     clipforge ui
 ```
 
+## Frontend (Next.js)
+
+A Next.js app in `frontend/` is the split-architecture replacement for the
+Streamlit UI above: same prompt-in/video-out flow, BYO-keys demo mode, and
+live per-stage progress, but talking to the FastAPI backend (`clipforge/api.py`)
+over REST + SSE instead of running the pipeline in-process.
+
+```bash
+cd frontend
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL to the backend's URL
+npm install
+npm run dev                         # http://localhost:3000
+```
+
+The backend defaults to `http://localhost:8080` — run it locally with
+`docker run --rm -p 8080:8080 --env-file .env clipforge api` or
+`uvicorn clipforge.api:app --port 8080` from the repo root.
+
+```bash
+cd frontend
+npm run lint    # eslint
+npm run build   # production build
+npm test        # vitest - covers the SSE event reducer and stream parsing
+```
+
 ## Tests
 
 One gate runs lint, format and the whole suite (121 tests) under a 95%
