@@ -123,12 +123,15 @@ class AppTests(unittest.TestCase):
             self.at.run()
             yield self.at
 
+    def _checkbox(self, at, label):
+        return next(box for box in at.checkbox if box.label == label)
+
     def _type_prompt_and_generate(self, upload=False):
         # set_value does not rerun the script; a browser user's textarea edit
         # commits on blur, so mirror that with an explicit run() before click.
         self.at.text_area[0].set_value("Why is the sky blue, for kids").run()
         if upload:
-            self.at.checkbox[0].set_value(True).run()
+            self._checkbox(self.at, "Also schedule on YouTube").set_value(True).run()
         self.at.button[0].click().run()
 
     def test_prompt_and_generate_show_total_and_stage_timings(self):
@@ -160,9 +163,58 @@ class AppTests(unittest.TestCase):
     def test_publish_controls_appear_only_when_upload_checked(self):
         with self._app() as at:
             self.assertEqual([box.label for box in at.number_input], [])
-            at.checkbox[0].set_value(True).run()
+            self._checkbox(at, "Also schedule on YouTube").set_value(True).run()
             labels = [box.label for box in at.number_input]
             self.assertIn("Schedule hours ahead", labels)
+
+    def test_automatic_image_count_checked_by_default_hides_slider(self):
+        with self._app() as at:
+            auto_checkbox = self._checkbox(at, "Automatic image count")
+            self.assertTrue(auto_checkbox.value)
+            self.assertEqual([s.label for s in at.slider], [])
+
+    def test_unchecking_automatic_reveals_manual_slider(self):
+        with self._app() as at:
+            self._checkbox(at, "Automatic image count").set_value(False).run()
+            labels = [s.label for s in at.slider]
+            self.assertIn("Scene images", labels)
+
+    def test_automatic_image_count_passes_none_to_pipeline(self):
+        calls = []
+
+        def fake(config, prompt, output_dir, **kwargs):
+            calls.append(kwargs)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(self.video, output_dir / "short.mp4")
+            if kwargs.get("on_event"):
+                kwargs["on_event"]({"event": "pipeline_done", "total_seconds": 1.0})
+            return {"title": "T", "total_seconds": 1.0, "watch_url": "", "video_path": self.video}
+
+        with patch.dict(os.environ, CONFIG_ENV), patch("clipforge.cli.run_pipeline", fake):
+            self.at.run()
+            self._type_prompt_and_generate()
+
+        self.assertIsNone(calls[-1]["num_images"])
+
+    def test_manual_image_count_passes_slider_value(self):
+        calls = []
+
+        def fake(config, prompt, output_dir, **kwargs):
+            calls.append(kwargs)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(self.video, output_dir / "short.mp4")
+            if kwargs.get("on_event"):
+                kwargs["on_event"]({"event": "pipeline_done", "total_seconds": 1.0})
+            return {"title": "T", "total_seconds": 1.0, "watch_url": "", "video_path": self.video}
+
+        with patch.dict(os.environ, CONFIG_ENV), patch("clipforge.cli.run_pipeline", fake):
+            self.at.run()
+            self._checkbox(self.at, "Automatic image count").set_value(False).run()
+            slider = next(s for s in self.at.slider if s.label == "Scene images")
+            slider.set_value(5).run()
+            self._type_prompt_and_generate()
+
+        self.assertEqual(calls[-1]["num_images"], 5)
 
     def test_generate_disabled_while_prompt_empty(self):
         with self._app() as at:

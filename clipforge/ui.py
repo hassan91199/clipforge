@@ -141,7 +141,10 @@ def render_app() -> None:
 
     with st.sidebar:
         st.header("Options")
-        num_images = st.slider("Scene images", 1, 6, DEFAULT_NUM_IMAGES)
+        auto_images = st.checkbox("Automatic image count", value=True)
+        num_images = None
+        if not auto_images:
+            num_images = st.slider("Scene images", 1, 6, DEFAULT_NUM_IMAGES)
         video_duration = st.select_slider("Target length", options=["30", "30-60", "60-90"])
         upload = False
         publish_now = False

@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from clipforge.cli import DEFAULT_NUM_IMAGES, run_pipeline
+from clipforge.cli import run_pipeline
 from clipforge.config import demo_config
 from clipforge.quota import check_and_increment
 
@@ -45,7 +45,7 @@ class GenerateRequest(BaseModel):
     prompt: str
     openai_api_key: str
     replicate_api_token: str
-    num_images: int = DEFAULT_NUM_IMAGES
+    num_images: int | None = None
     video_duration: str = "30"
 
 
@@ -61,7 +61,7 @@ def _sse(event: dict) -> str:
     return f"data: {json.dumps(event)}\n\n"
 
 
-def _stream_run(config, prompt: str, num_images: int, video_duration: str) -> Iterator[str]:
+def _stream_run(config, prompt: str, num_images: int | None, video_duration: str) -> Iterator[str]:
     run_id = uuid.uuid4().hex
     output_dir = RUNS_DIR / run_id
     events: queue.Queue = queue.Queue()
