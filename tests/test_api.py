@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from clipforge.api import app, client_ip
+from clipforge.pipeline.images import MIN_AUTO_IMAGES
 from clipforge.pipeline.script_gen import VideoScript
 
 
@@ -27,7 +28,7 @@ class ApiTests(unittest.TestCase):
         self.addCleanup(self.runs_dir_patcher.stop)
         self.client = TestClient(app)
 
-    def _run_generate(self, prompt="a curious cat", num_images=2):
+    def _run_generate(self, prompt="a curious cat", num_images=2, send_num_images=True):
         with (
             patch("clipforge.api.check_and_increment", return_value=(True, 1)),
             patch("clipforge.cli.generate_script") as fake_script,
@@ -50,16 +51,16 @@ class ApiTests(unittest.TestCase):
             fake_images.side_effect = lambda config, prompts, out, **kw: []
             fake_render.side_effect = lambda *args, **kw: args[-1].write_bytes(b"mp4") or args[-1]
 
-            response = self.client.post(
-                "/api/generate",
-                json={
-                    "prompt": prompt,
-                    "openai_api_key": "sk-test",
-                    "replicate_api_token": "r8-test",
-                    "num_images": num_images,
-                },
-            )
-            return response, fake_script
+            payload = {
+                "prompt": prompt,
+                "openai_api_key": "sk-test",
+                "replicate_api_token": "r8-test",
+            }
+            if send_num_images:
+                payload["num_images"] = num_images
+
+            response = self.client.post("/api/generate", json=payload)
+            return response, fake_script, fake_prompts
 
     def test_health_ok(self):
         response = self.client.get("/api/health")
@@ -67,7 +68,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json(), {"status": "ok"})
 
     def test_generate_streams_stage_events_then_result(self):
-        response, fake_script = self._run_generate()
+        response, fake_script, _ = self._run_generate()
         self.assertEqual(response.status_code, 200)
         events = _sse_events(response)
 
@@ -84,8 +85,20 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(config_used.openai_api_key, "sk-test")
         self.assertEqual(config_used.replicate_api_token, "r8-test")
 
+    def test_omitted_num_images_resolves_automatically(self):
+        # fake_script's "Narration." is one sentence, so auto count clamps to
+        # MIN_AUTO_IMAGES (3) - see clipforge.pipeline.images.auto_image_count.
+        response, _, fake_prompts = self._run_generate(send_num_images=False)
+        self.assertEqual(response.status_code, 200)
+        events = _sse_events(response)
+        self.assertEqual([e for e in events if e["event"] == "error"], [])
+        prompts_call_kwargs = fake_prompts.call_args
+        self.assertEqual(prompts_call_kwargs.args[-1], MIN_AUTO_IMAGES)
+        notes = [e["message"] for e in events if e["event"] == "note"]
+        self.assertTrue(any("auto image count" in note for note in notes))
+
     def test_generate_serves_the_rendered_video(self):
-        response, _ = self._run_generate()
+        response, _, _ = self._run_generate()
         events = _sse_events(response)
         video_url = next(e["video_url"] for e in events if e["event"] == "result")
 

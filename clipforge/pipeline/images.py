@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 
 from clipforge.config import Config
+from clipforge.pipeline.captions import split_sentences
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 REPLICATE_API_URL = "https://api.replicate.com/v1"
@@ -25,6 +26,22 @@ REPLICATE_API_URL = "https://api.replicate.com/v1"
 DEFAULT_FLUX_MODEL = "black-forest-labs/flux-schnell"
 DEFAULT_ASPECT_RATIO = "9:16"
 DEFAULT_STYLE = "photorealistic"
+
+MIN_AUTO_IMAGES = 3
+MAX_AUTO_IMAGES = 8
+
+
+def auto_image_count(script: str) -> int:
+    """Derive a scene count from the script's own sentence structure.
+
+    Deterministic, not an LLM guess - mirrors CloakMotion's segment-per-
+    sentence approach (one image per natural narration beat) rather than
+    asking a model to invent a number. Clamped so a one-line script still
+    gets a few scenes and a long one doesn't blow up render time/cost.
+    """
+    sentence_count = len(split_sentences(script))
+    return max(MIN_AUTO_IMAGES, min(sentence_count, MAX_AUTO_IMAGES))
+
 
 REQUEST_TIMEOUT = (10, 60)
 PREDICTION_TIMEOUT_SECONDS = 600

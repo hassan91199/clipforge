@@ -6,6 +6,9 @@ from unittest.mock import MagicMock, patch
 
 from clipforge.config import Config
 from clipforge.pipeline.images import (
+    MAX_AUTO_IMAGES,
+    MIN_AUTO_IMAGES,
+    auto_image_count,
     generate_image,
     generate_image_prompts,
     generate_images,
@@ -36,6 +39,22 @@ def _chat_response(prompts):
         200,
         {"choices": [{"message": {"content": json.dumps({"prompts": prompts})}}]},
     )
+
+
+class TestAutoImageCount(unittest.TestCase):
+    def test_clamps_short_script_up_to_minimum(self):
+        self.assertEqual(auto_image_count("One sentence."), MIN_AUTO_IMAGES)
+
+    def test_clamps_empty_script_up_to_minimum(self):
+        self.assertEqual(auto_image_count(""), MIN_AUTO_IMAGES)
+
+    def test_uses_sentence_count_within_range(self):
+        script = "First bit. Second bit. Third bit. Fourth bit. Fifth bit."
+        self.assertEqual(auto_image_count(script), 5)
+
+    def test_clamps_long_script_down_to_maximum(self):
+        script = " ".join(f"Sentence number {i}." for i in range(20))
+        self.assertEqual(auto_image_count(script), MAX_AUTO_IMAGES)
 
 
 class TestGenerateImagePrompts(unittest.TestCase):

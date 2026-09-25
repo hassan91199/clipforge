@@ -15,13 +15,13 @@ from typing import Callable
 
 from clipforge.config import load_config
 from clipforge.pipeline.captions import generate_timed_captions
-from clipforge.pipeline.images import generate_image_prompts, generate_images
+from clipforge.pipeline.images import auto_image_count, generate_image_prompts, generate_images
 from clipforge.pipeline.render import render_video
 from clipforge.pipeline.script_gen import generate_script
 from clipforge.pipeline.tts import generate_voiceover
 from clipforge.publish.youtube_publisher import publish_video
 
-DEFAULT_NUM_IMAGES = 3
+DEFAULT_NUM_IMAGES = 3  # seed value for manual-mode UI sliders only; auto mode ignores this
 DEFAULT_PUBLISH_IN_HOURS = 24
 
 
@@ -29,7 +29,7 @@ def run_pipeline(
     config,
     prompt: str,
     output_dir: Path,
-    num_images: int = DEFAULT_NUM_IMAGES,
+    num_images: int | None = None,
     video_duration: str = "30",
     publish_in_hours: int = DEFAULT_PUBLISH_IN_HOURS,
     upload: bool = True,
@@ -38,6 +38,10 @@ def run_pipeline(
     on_event: Callable[[dict], None] | None = None,
 ) -> dict:
     """Run prompt -> script -> voiceover -> captions -> images -> render -> publish.
+
+    `num_images=None` (the default) picks the scene count automatically from
+    the generated script's sentence structure (see
+    `clipforge.pipeline.images.auto_image_count`); pass an int to override it.
 
     Returns a summary dict with artifact paths and the publish response. When
     `on_event` is given, progress is reported as event dicts: stage_start,
@@ -78,12 +82,18 @@ def run_pipeline(
         "captions", generate_timed_captions, config, voiceover_path, output_dir / "captions.json"
     )
 
+    resolved_num_images = num_images
+    if resolved_num_images is None:
+        resolved_num_images = auto_image_count(script.script)
+        print(f"[image-prompts] auto image count: {resolved_num_images}", flush=True)
+        _emit({"event": "note", "message": f"auto image count: {resolved_num_images}"})
+
     prompts = _stage(
         "image-prompts",
         generate_image_prompts,
         config,
         script.script,
-        num_images,
+        resolved_num_images,
     )
     (output_dir / "prompts.json").write_text(json.dumps(prompts, indent=2))
     images_dir = output_dir / "images"
@@ -155,7 +165,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory for run artifacts (default: ./runs/run-<timestamp>/)",
     )
     parser.add_argument(
-        "--num-images", type=int, default=DEFAULT_NUM_IMAGES, help="Scene images per video"
+        "--num-images",
+        type=int,
+        default=None,
+        help="Scene images per video (default: automatic, based on script length)",
     )
     parser.add_argument(
         "--duration",

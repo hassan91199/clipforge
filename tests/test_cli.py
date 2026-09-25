@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from clipforge.cli import build_parser, main, run_pipeline
+from clipforge.pipeline.images import MIN_AUTO_IMAGES
 from clipforge.pipeline.script_gen import VideoScript
 
 
@@ -154,6 +155,27 @@ class RunPipelineTests(unittest.TestCase):
         self.assertGreater(summary["total_seconds"], 0)
         self.assertLess(summary["total_seconds"], 5)
 
+    def test_num_images_omitted_uses_auto_count(self):
+        # FakeStages.fake_script returns a one-sentence script, so the
+        # deterministic auto count clamps up to MIN_AUTO_IMAGES.
+        self._run()
+        prompts_call = next(call for call in self.fake.calls if call[0] == "prompts")
+        self.assertEqual(prompts_call[1], MIN_AUTO_IMAGES)
+
+    def test_auto_image_count_emits_note_event(self):
+        events = []
+        self._run(on_event=events.append)
+        notes = [event["message"] for event in events if event["event"] == "note"]
+        self.assertTrue(any("auto image count" in note for note in notes))
+
+    def test_explicit_num_images_skips_auto_note(self):
+        events = []
+        self._run(num_images=4, on_event=events.append)
+        prompts_call = next(call for call in self.fake.calls if call[0] == "prompts")
+        self.assertEqual(prompts_call[1], 4)
+        notes = [event["message"] for event in events if event["event"] == "note"]
+        self.assertFalse(any("auto image count" in note for note in notes))
+
     def test_stage_failure_propagates_and_skips_publish(self):
         def broken_images(config, prompts, output_dir, **kwargs):
             raise RuntimeError("FLUX down")
@@ -168,7 +190,7 @@ class CliArgTests(unittest.TestCase):
     def test_defaults(self):
         args = build_parser().parse_args(["some prompt"])
         self.assertEqual(args.prompt, "some prompt")
-        self.assertEqual(args.num_images, 3)
+        self.assertIsNone(args.num_images)
         self.assertEqual(args.duration, "30")
         self.assertEqual(args.publish_in_hours, 24)
         self.assertFalse(args.publish_now)

@@ -12,7 +12,9 @@ export interface GenerateRequest {
   prompt: string;
   openai_api_key: string;
   replicate_api_token: string;
-  num_images: number;
+  // Omitted (or undefined) means automatic: the backend derives scene count
+  // from the script's sentence structure instead of a fixed number.
+  num_images?: number;
   video_duration: string;
 }
 

@@ -19,6 +19,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   const [replicateToken, setReplicateToken] = useState("");
+  const [autoImages, setAutoImages] = useState(true);
   const [numImages, setNumImages] = useState(3);
   const [videoDuration, setVideoDuration] = useState("30");
   const [isRunning, setIsRunning] = useState(false);
@@ -41,7 +42,7 @@ export default function Home() {
           prompt,
           openai_api_key: openaiKey,
           replicate_api_token: replicateToken,
-          num_images: numImages,
+          ...(autoImages ? {} : { num_images: numImages }),
           video_duration: videoDuration,
         },
         (event) => setTracker((state) => applyEvent(state, event)),
@@ -101,16 +102,30 @@ export default function Home() {
 
           <div className={styles.row}>
             <div className={styles.field}>
-              <label htmlFor="num-images">Scene images ({numImages})</label>
-              <input
-                id="num-images"
-                type="range"
-                min={1}
-                max={6}
-                value={numImages}
-                onChange={(e) => setNumImages(Number(e.target.value))}
-                disabled={isRunning}
-              />
+              <label htmlFor="auto-images">
+                <input
+                  id="auto-images"
+                  type="checkbox"
+                  checked={autoImages}
+                  onChange={(e) => setAutoImages(e.target.checked)}
+                  disabled={isRunning}
+                />{" "}
+                Automatic image count
+              </label>
+              {!autoImages && (
+                <>
+                  <label htmlFor="num-images">Scene images ({numImages})</label>
+                  <input
+                    id="num-images"
+                    type="range"
+                    min={1}
+                    max={6}
+                    value={numImages}
+                    onChange={(e) => setNumImages(Number(e.target.value))}
+                    disabled={isRunning}
+                  />
+                </>
+              )}
             </div>
 
             <div className={styles.field}>
