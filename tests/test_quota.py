@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 from unittest.mock import MagicMock, patch
@@ -87,6 +88,27 @@ class QuotaTests(unittest.TestCase):
         self.assertTrue(
             any(name.startswith("demo-runs/") and "ip-" not in name for name in blob_names)
         )
+
+    def test_explicit_credentials_used_when_json_env_var_set(self):
+        # Off Cloud Run there's no ambient service-account, so a Render (or
+        # any non-GCP host) deployment supplies the key as JSON in an env var.
+        client, _ = self._client(existing=0)
+        fake_creds = MagicMock(project_id="proj-x")
+        creds_json = json.dumps({"type": "service_account"})
+        with (
+            patch.dict(
+                os.environ,
+                {"DEMO_BUCKET": "demo-bkt", "GOOGLE_APPLICATION_CREDENTIALS_JSON": creds_json},
+            ),
+            patch(
+                "google.oauth2.service_account.Credentials.from_service_account_info",
+                return_value=fake_creds,
+            ) as from_info,
+            patch("google.cloud.storage.Client", return_value=client) as storage_client,
+        ):
+            quota.check_and_increment()
+        from_info.assert_called_once_with({"type": "service_account"})
+        storage_client.assert_called_once_with(credentials=fake_creds, project="proj-x")
 
     def test_no_client_ip_only_checks_global_limit(self):
         client, blob = self._client(existing=0)
