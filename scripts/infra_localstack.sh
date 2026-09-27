@@ -1,8 +1,9 @@
 #!/bin/sh
 # LocalStack gate for the Terraform infra: starts LocalStack, applies the
-# quota module (S3+IAM) against it, then tears down. App Runner has no
-# LocalStack support, so module.service is only planned/validated here and
-# applied against real AWS in the deploy workflow.
+# quota module (S3+IAM) against it, then tears down. App Runner, CloudFront,
+# ACM and Cloudflare DNS have no LocalStack support, so the rest of the tree
+# is only fmt/init/validate-checked here and applied against real AWS +
+# Cloudflare in the demo-up workflow.
 set -e
 cd "$(dirname "$0")/../infra"
 
@@ -24,6 +25,11 @@ tf() {
         -e TF_VAR_localstack=true \
         -e TF_VAR_quota_bucket_name=clipforge-demo-quota-local \
         -e TF_VAR_image_uri=local/clipforge:ci \
+        -e TF_VAR_frontend_bucket_name=clipforge-frontend-local \
+        -e TF_VAR_frontend_domain_name=clipforge.local.test \
+        -e TF_VAR_api_domain_name=api.clipforge.local.test \
+        -e TF_VAR_cloudflare_zone_id=local-zone \
+        -e TF_VAR_cloudflare_api_token=local-fake-token \
         hashicorp/terraform:1.16 "$@"
 }
 

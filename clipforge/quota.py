@@ -2,40 +2,21 @@
 
 Active only when DEMO_BUCKET is set (the deployed app gets one; local/dev
 runs don't, so nothing is required of the operator's environment). The
-counter is a single GCS object per UTC day - get-then-put is not atomic, but
+counter is a single S3 object per UTC day - get-then-put is not atomic, but
 a demo-scale race just means the day's count can land a run or two over the
 soft limit, which is acceptable here.
 
-Cloud Run has no built-in per-IP rate limiting without a load balancer +
-Cloud Armor, so a second, per-IP counter (keyed off the caller-supplied
-client IP) is checked alongside the global one - cheap and sufficient at
-demo traffic.
+App Runner has no built-in per-IP rate limiting without a WAF in front of
+it, so a second, per-IP counter (keyed off the caller-supplied client IP) is
+checked alongside the global one - cheap and sufficient at demo traffic.
 
-On Cloud Run the storage client picks up the runtime service account
-automatically. On any other host (e.g. Render, for CF-33) there's no ambient
-GCP identity, so GOOGLE_APPLICATION_CREDENTIALS_JSON carries the service
-account key as a secret env var instead of a mounted file.
+The instance's App Runner task role grants s3:GetObject/PutObject on this
+bucket directly (see infra/modules/quota), so boto3 picks up credentials
+ambiently - no explicit key needed.
 """
 
-import json
 import os
 from datetime import datetime, timezone
-
-from google.api_core.exceptions import NotFound
-
-
-def _storage_client():
-    from google.cloud import storage
-
-    creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON", "")
-    if not creds_json:
-        return storage.Client()
-
-    from google.oauth2 import service_account
-
-    credentials = service_account.Credentials.from_service_account_info(json.loads(creds_json))
-    return storage.Client(credentials=credentials, project=credentials.project_id)
-
 
 DAILY_LIMIT = int(os.environ.get("DEMO_DAILY_LIMIT", "100"))
 PER_IP_DAILY_LIMIT = int(os.environ.get("DEMO_PER_IP_DAILY_LIMIT", "10"))
@@ -45,17 +26,16 @@ def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _check_and_increment_one(bucket, blob_name: str, limit: int) -> tuple[bool, int]:
-    blob = bucket.blob(blob_name)
+def _check_and_increment_one(client, bucket: str, key: str, limit: int) -> tuple[bool, int]:
     try:
-        used = int(blob.download_as_bytes().decode() or "0")
-    except NotFound:
+        used = int(client.get_object(Bucket=bucket, Key=key)["Body"].read().decode() or "0")
+    except client.exceptions.NoSuchKey:
         used = 0
     except Exception:
         return True, 0
     if used >= limit:
         return False, used
-    blob.upload_from_string(str(used + 1))
+    client.put_object(Bucket=bucket, Key=key, Body=str(used + 1).encode())
     return True, used + 1
 
 
@@ -71,14 +51,15 @@ def check_and_increment(client_ip: str | None = None) -> tuple[bool, int]:
     if not bucket_name:
         return True, 0
 
-    client = _storage_client()
-    bucket = client.bucket(bucket_name)
+    import boto3
+
+    client = boto3.client("s3")
 
     if client_ip:
         allowed, used = _check_and_increment_one(
-            bucket, f"demo-runs/ip-{client_ip}/{_today()}", PER_IP_DAILY_LIMIT
+            client, bucket_name, f"demo-runs/ip-{client_ip}/{_today()}", PER_IP_DAILY_LIMIT
         )
         if not allowed:
             return allowed, used
 
-    return _check_and_increment_one(bucket, f"demo-runs/{_today()}", DAILY_LIMIT)
+    return _check_and_increment_one(client, bucket_name, f"demo-runs/{_today()}", DAILY_LIMIT)

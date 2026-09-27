@@ -1,0 +1,50 @@
+name: demo-down
+
+# Manual, approval-gated: tears down everything demo-up.yml created (App
+# Runner, S3+CloudFront frontend, Cloudflare DNS) in one terraform destroy.
+# The tiny Terraform state bucket and the ECR repo are intentionally NOT
+# destroyed here - both are outside the managed resource graph and cost a
+# fraction of a cent/month, kept so the next demo-up has somewhere to push
+# an image and to find its state.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo-down:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform destroy
+        working-directory: infra
+        env:
+          TF_VAR_quota_bucket_name: ${{ vars.QUOTA_BUCKET_NAME }}
+          # image_uri isn't read by destroy, but the variable is required -
+          # any value satisfies it.
+          TF_VAR_image_uri: unused
+          TF_VAR_frontend_bucket_name: ${{ vars.FRONTEND_BUCKET_NAME }}
+          TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
+          TF_VAR_api_domain_name: ${{ vars.API_DOMAIN_NAME }}
+          TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_shared_secret_env_vars: >-
+            {"OPENAI_API_KEY":"${{ vars.OPENAI_API_KEY_PARAM_ARN }}",
+            "REPLICATE_API_TOKEN":"${{ vars.REPLICATE_API_TOKEN_PARAM_ARN }}",
+            "GOOGLE_CLIENT_SECRET":"${{ vars.GOOGLE_CLIENT_SECRET_PARAM_ARN }}"}
+          TF_VAR_shared_plain_env_vars: >-
+            {"GOOGLE_CLIENT_ID":"${{ vars.GOOGLE_CLIENT_ID }}",
+            "GOOGLE_REDIRECT_URI":"${{ vars.GOOGLE_REDIRECT_URI }}"}
+        run: |
+          terraform init -input=false
+          terraform destroy -auto-approve -input=false
+
+      - name: Summary
+        run: echo "## Environment is down - no App Runner, CloudFront, or S3-frontend cost remains." >> "$GITHUB_STEP_SUMMARY"
