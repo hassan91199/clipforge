@@ -4,6 +4,9 @@
 
 resource "aws_s3_bucket" "site" {
   bucket = var.bucket_name
+  # force_destroy lets a full teardown (CF-34's demo-down) delete the
+  # bucket - and the frontend build it holds - in one terraform destroy.
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "site" {
