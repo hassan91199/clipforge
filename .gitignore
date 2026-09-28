@@ -25,3 +25,6 @@ opencode.json
 # terraform runtime
 infra/.terraform/
 infra/*.tfstate*
+
+# personal Claude Code settings (permission overrides)
+.claude/settings.local.json
