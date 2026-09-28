@@ -53,6 +53,10 @@ jobs:
           docker push "$IMAGE:$TAG"
           echo "IMAGE_URI=$IMAGE:$TAG" >> "$GITHUB_ENV"
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16"
+
       - name: Terraform apply
         working-directory: infra
         env:
