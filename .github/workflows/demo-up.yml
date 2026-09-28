@@ -76,6 +76,12 @@ jobs:
             "GOOGLE_REDIRECT_URI":"${{ vars.GOOGLE_REDIRECT_URI }}"}
         run: |
           terraform init -input=false
+          # api_service's custom-domain validation records are only known
+          # after the association resource itself is created, but the
+          # cloudflare_record.api_cert_validation for_each needs those names
+          # as its keys - so bring the App Runner custom domain up first,
+          # then apply everything else once its output is a concrete value.
+          terraform apply -auto-approve -input=false -target=module.api_service
           terraform apply -auto-approve -input=false
           echo "demo_url=$(terraform output -raw demo_service_url)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_service_url)" >> "$GITHUB_OUTPUT"
