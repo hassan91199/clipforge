@@ -31,9 +31,11 @@ jobs:
         working-directory: infra
         env:
           TF_VAR_quota_bucket_name: ${{ vars.QUOTA_BUCKET_NAME }}
-          # image_uri isn't read by destroy, but the variable is required -
-          # any value satisfies it.
-          TF_VAR_image_uri: unused
+          # image_uri's value doesn't matter for a destroy, but the AWS
+          # provider validates aws_apprunner_service's image_identifier
+          # format even while refreshing state before a destroy plan, so it
+          # has to look like a real ECR image URI.
+          TF_VAR_image_uri: 646174062599.dkr.ecr.us-east-1.amazonaws.com/clipforge:unused
           TF_VAR_frontend_bucket_name: ${{ vars.FRONTEND_BUCKET_NAME }}
           TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
           TF_VAR_api_domain_name: ${{ vars.API_DOMAIN_NAME }}
