@@ -27,7 +27,7 @@ variable "demo_app_name" {
 }
 
 variable "api_app_name" {
-  description = "App Runner service name for the FastAPI backend."
+  description = "Name prefix for the FastAPI backend's EC2 resources (CF-35)."
   type        = string
   default     = "clipforge-api"
 }

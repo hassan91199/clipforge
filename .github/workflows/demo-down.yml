@@ -1,11 +1,11 @@
 name: demo-down
 
 # Manual, approval-gated: tears down everything demo-up.yml created (App
-# Runner, S3+CloudFront frontend, Cloudflare DNS) in one terraform destroy.
-# The tiny Terraform state bucket and the ECR repo are intentionally NOT
-# destroyed here - both are outside the managed resource graph and cost a
-# fraction of a cent/month, kept so the next demo-up has somewhere to push
-# an image and to find its state.
+# Runner demo service, EC2 api instance, S3+CloudFront frontend, Cloudflare
+# DNS) in one terraform destroy. The tiny Terraform state bucket and the ECR
+# repo are intentionally NOT destroyed here - both are outside the managed
+# resource graph and cost a fraction of a cent/month, kept so the next
+# demo-up has somewhere to push an image and to find its state.
 
 on:
   workflow_dispatch:
@@ -33,8 +33,9 @@ jobs:
           TF_VAR_quota_bucket_name: ${{ vars.QUOTA_BUCKET_NAME }}
           # image_uri's value doesn't matter for a destroy, but the AWS
           # provider validates aws_apprunner_service's image_identifier
-          # format even while refreshing state before a destroy plan, so it
-          # has to look like a real ECR image URI.
+          # format (the demo_service module) even while refreshing state
+          # before a destroy plan, so it has to look like a real ECR image
+          # URI.
           TF_VAR_image_uri: 646174062599.dkr.ecr.us-east-1.amazonaws.com/clipforge:unused
           TF_VAR_frontend_bucket_name: ${{ vars.FRONTEND_BUCKET_NAME }}
           TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
@@ -53,4 +54,4 @@ jobs:
           terraform destroy -auto-approve -input=false
 
       - name: Summary
-        run: echo "## Environment is down - no App Runner, CloudFront, or S3-frontend cost remains." >> "$GITHUB_STEP_SUMMARY"
+        run: echo "## Environment is down - no App Runner, EC2, CloudFront, or S3-frontend cost remains." >> "$GITHUB_STEP_SUMMARY"
