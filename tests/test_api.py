@@ -1,5 +1,6 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -128,6 +129,54 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(events[0]["event"], "error")
             self.assertIn("100", events[0]["message"])
             fake_script.assert_not_called()
+
+    def test_heartbeat_events_fill_silence_during_a_long_stage(self):
+        # Stopgap for CF-35: App Runner kills an SSE connection that goes
+        # quiet for too long (e.g. during the multi-minute render stage).
+        # Proves the stream itself has a keepalive, independent of how long
+        # any one pipeline stage takes to emit its own next event.
+        with (
+            patch("clipforge.api.HEARTBEAT_INTERVAL_SECONDS", 0.01),
+            patch("clipforge.api.check_and_increment", return_value=(True, 1)),
+            patch("clipforge.cli.generate_script") as fake_script,
+            patch("clipforge.cli.generate_voiceover") as fake_voiceover,
+            patch("clipforge.cli.generate_timed_captions") as fake_captions,
+            patch("clipforge.cli.generate_image_prompts") as fake_prompts,
+            patch("clipforge.cli.generate_images") as fake_images,
+            patch("clipforge.cli.render_video") as fake_render,
+        ):
+            fake_script.return_value = VideoScript(title="T", caption="C", script="Narration.")
+            fake_voiceover.side_effect = lambda config, text, path, **kw: (
+                path.write_bytes(b"mp3"),
+                path,
+            )[1]
+            fake_captions.side_effect = lambda config, audio, path, **kw: (
+                path.write_text(json.dumps({"timed_captions": []})),
+                path,
+            )[1]
+            fake_prompts.return_value = ["p1", "p2"]
+            fake_images.side_effect = lambda config, prompts, out, **kw: []
+
+            def slow_render(*args, **kw):
+                time.sleep(0.05)
+                args[-1].write_bytes(b"mp4")
+                return args[-1]
+
+            fake_render.side_effect = slow_render
+
+            response = self.client.post(
+                "/api/generate",
+                json={
+                    "prompt": "a curious cat",
+                    "openai_api_key": "sk-test",
+                    "replicate_api_token": "r8-test",
+                    "num_images": 2,
+                },
+            )
+            events = _sse_events(response)
+            heartbeats = [e for e in events if e["event"] == "heartbeat"]
+            self.assertTrue(heartbeats, "expected at least one heartbeat during the slow stage")
+            self.assertEqual(events[-1]["event"], "result")
 
     def test_pipeline_failure_emits_error_event(self):
         with (

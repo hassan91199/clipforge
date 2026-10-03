@@ -30,6 +30,13 @@ from clipforge.quota import check_and_increment
 # the same trick that makes the Streamlit demo's fetch work.
 RUNS_DIR = Path("runs")
 
+# Stopgap for App Runner's idle-connection timeout killing the SSE stream
+# during a long, otherwise-silent pipeline stage (notably render's
+# multi-minute ffmpeg chain, which emits only one stage_start/stage_done
+# pair - see CF-35). Keeps bytes flowing on the connection without changing
+# anything about how the pipeline itself reports progress.
+HEARTBEAT_INTERVAL_SECONDS = 20
+
 app = FastAPI(title="ClipForge API")
 
 _frontend_origin = os.environ.get("FRONTEND_ORIGIN", "")
@@ -85,7 +92,11 @@ def _stream_run(config, prompt: str, num_images: int | None, video_duration: str
 
     threading.Thread(target=worker, daemon=True).start()
     while True:
-        event = events.get()
+        try:
+            event = events.get(timeout=HEARTBEAT_INTERVAL_SECONDS)
+        except queue.Empty:
+            yield _sse({"event": "heartbeat"})
+            continue
         if event is None:
             return
         yield _sse(event)
