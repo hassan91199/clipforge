@@ -69,6 +69,12 @@ describe("applyEvent", () => {
     expect(state.stages.voiceover).toEqual({ status: "running", seconds: null });
   });
 
+  it("ignores heartbeat events (transport keepalive, no visible state change)", () => {
+    const before = reduce([{ event: "stage_start", stage: "render" }]);
+    const after = applyEvent(before, { event: "heartbeat" });
+    expect(after).toEqual(before);
+  });
+
   it("replays a full successful run in pipeline order", () => {
     const events: GenerateEvent[] = PIPELINE_STAGES.flatMap((stage) => [
       { event: "stage_start", stage } as GenerateEvent,

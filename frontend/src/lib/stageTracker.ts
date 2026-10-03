@@ -30,7 +30,11 @@ export type GenerateEvent =
   | { event: "note"; message: string }
   | { event: "pipeline_done"; total_seconds: number }
   | { event: "result"; video_url: string }
-  | { event: "error"; message: string };
+  | { event: "error"; message: string }
+  // Transport-level keepalive (CF-35 stopgap): App Runner's SSE idle timeout
+  // otherwise kills the connection during a long silent stage. No stage
+  // info, so applyEvent's default branch below is the intended handling.
+  | { event: "heartbeat" };
 
 export interface TrackerState {
   stages: Record<string, StageState>;
