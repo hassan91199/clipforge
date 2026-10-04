@@ -150,7 +150,7 @@ resource "aws_iam_role_policy" "secrets" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = "ssm:GetParameters"
+        Action   = "ssm:GetParameter"
         Resource = values(var.secret_env_vars)
       },
       {
