@@ -16,6 +16,29 @@ data "aws_subnets" "default" {
   }
 }
 
+data "aws_subnet" "default" {
+  for_each = toset(data.aws_subnets.default.ids)
+  id       = each.value
+}
+
+# Not every AZ in a region supports every instance type (e.g. t3.medium is
+# missing from us-east-1e) - pick a subnet whose AZ actually offers
+# var.instance_type instead of an arbitrary first subnet.
+data "aws_ec2_instance_type_offerings" "available" {
+  filter {
+    name   = "instance-type"
+    values = [var.instance_type]
+  }
+  location_type = "availability-zone"
+}
+
+locals {
+  supported_subnet_ids = [
+    for s in data.aws_subnet.default : s.id
+    if contains(data.aws_ec2_instance_type_offerings.available.locations, s.availability_zone)
+  ]
+}
+
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -166,7 +189,7 @@ resource "aws_iam_role_policy" "logs" {
 resource "aws_instance" "this" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = var.instance_type
-  subnet_id              = tolist(data.aws_subnets.default.ids)[0]
+  subnet_id              = local.supported_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.this.id]
   iam_instance_profile   = aws_iam_instance_profile.this.name
 
