@@ -8,8 +8,8 @@ output "demo_service_url" {
 }
 
 output "api_service_url" {
-  description = "Default App Runner URL for the FastAPI backend (before the custom domain)."
-  value       = module.api_service.service_url
+  description = "Direct http://ip:8080 URL for the FastAPI backend container, reachable before DNS/TLS are ready - used for CI smoke-testing only; real traffic goes through the custom domain via Caddy."
+  value       = "http://${module.api_ec2.public_ip}:8080"
 }
 
 output "frontend_bucket" {

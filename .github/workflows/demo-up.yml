@@ -1,8 +1,9 @@
 name: demo-up
 
 # Manual, approval-gated: brings the whole on-demand AWS environment up
-# (CF-34) - App Runner (demo + api), S3+CloudFront frontend, Cloudflare DNS
-# - then smoke-tests it. Pair with demo-down.yml to tear it all back down.
+# (CF-34) - App Runner (demo), EC2+Caddy (api, CF-35), S3+CloudFront
+# frontend, Cloudflare DNS - then smoke-tests it. Pair with demo-down.yml to
+# tear it all back down.
 #
 # One-time setup (see .docs/cf34_aws_demo_handoff.md for the full checklist):
 #   secrets.AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY   IAM user for CI
@@ -76,12 +77,6 @@ jobs:
             "GOOGLE_REDIRECT_URI":"${{ vars.GOOGLE_REDIRECT_URI }}"}
         run: |
           terraform init -input=false
-          # api_service's custom-domain validation records are only known
-          # after the association resource itself is created, but the
-          # cloudflare_record.api_cert_validation for_each needs those names
-          # as its keys - so bring the App Runner custom domain up first,
-          # then apply everything else once its output is a concrete value.
-          terraform apply -auto-approve -input=false -target=module.api_service
           terraform apply -auto-approve -input=false
           echo "demo_url=$(terraform output -raw demo_service_url)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_service_url)" >> "$GITHUB_OUTPUT"
@@ -98,10 +93,21 @@ jobs:
           aws s3 sync out "s3://${{ vars.FRONTEND_BUCKET_NAME }}" --delete
           aws cloudfront create-invalidation --distribution-id "${{ steps.tf.outputs.distribution_id }}" --paths "/*"
 
-      - name: Smoke the App Runner default URLs
+      - name: Smoke the demo service and API instance
         run: |
           curl -fsS --max-time 60 "${{ steps.tf.outputs.demo_url }}/_stcore/health"
-          curl -fsS --max-time 60 "${{ steps.tf.outputs.api_url }}/api/health"
+
+          # Unlike App Runner, terraform apply only waits for the EC2 instance
+          # to reach "running" - not for user-data (docker pull, container
+          # start) to finish. Retry instead of a single attempt.
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "${{ steps.tf.outputs.api_url }}/api/health"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::api instance never became healthy"
+          exit 1
 
       - name: Summary
         run: |
@@ -109,4 +115,4 @@ jobs:
           echo "- Frontend: https://${{ vars.FRONTEND_DOMAIN_NAME }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- API: https://${{ vars.API_DOMAIN_NAME }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Custom domains can take a few minutes to resolve (ACM cert issuance + DNS propagation) even though the health checks above already passed against the default App Runner URLs. Verify the custom domain before sharing the link." >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend custom domain can take a few minutes to resolve (ACM cert issuance + DNS propagation) even though its health check above already passed. The API's custom domain additionally needs Caddy to obtain its own Let's Encrypt certificate on first boot (a minute or two) - if it's not reachable yet, give it a bit longer before sharing the link." >> "$GITHUB_STEP_SUMMARY"
