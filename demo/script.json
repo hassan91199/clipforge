@@ -1,0 +1,36 @@
+{
+  "voice": "en-US-AndrewNeural",
+  "scenes": [
+    {
+      "id": "intro",
+      "phrases": [
+        "A text prompt goes in.",
+        "Pick the scene count and length.",
+        "Hit generate, it's live end to end."
+      ]
+    },
+    {
+      "id": "fast-stages",
+      "phrases": [
+        "GPT-4o writes the script,",
+        "a voiceover is generated,",
+        "and captions are aligned word by word."
+      ]
+    },
+    {
+      "id": "images",
+      "phrases": [
+        "FLUX renders each scene image,",
+        "with live progress the whole time."
+      ]
+    },
+    {
+      "id": "result",
+      "phrases": [
+        "FFmpeg assembles the finished short,",
+        "captions burned in,",
+        "ready in under two minutes."
+      ]
+    }
+  ]
+}
