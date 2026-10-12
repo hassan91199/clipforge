@@ -2,6 +2,12 @@
 
 Prompt-driven YouTube Shorts pipeline: text prompt → GPT-4o script → TTS voiceover → Whisper-timed captions → GPT-4o scene prompts → Replicate FLUX images → ffmpeg-rendered vertical video with burned-in captions.
 
+## Demo
+
+[![ClipForge demo thumbnail](docs/demo/thumbnail.png)](docs/demo/demo.mp4)
+
+A real run, narrated: a text prompt goes in, live per-stage progress streams over SSE (script, voiceover, captions, scene images, render), and a captioned vertical short comes out in under two minutes. [Watch the recording](docs/demo/demo.mp4).
+
 ## Setup
 
 ```bash
@@ -100,7 +106,7 @@ npm test        # vitest - covers the SSE event reducer and stream parsing
 
 ## Tests
 
-One gate runs lint, format and the whole suite (121 tests) under a 95%
+One gate runs lint, format and the whole suite (149 tests) under a 95%
 coverage floor:
 
 ```bash
