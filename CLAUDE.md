@@ -47,6 +47,14 @@ details.
 - Never commit directly to `main`. All work happens on a branch; `main`
   only ever changes by merging a branch into it (`git merge --no-ff`, then
   push `main`). Never force-push.
+- **Pushing/`gh` write ops**: this machine has multiple GitHub accounts, and
+  the default session is not the one that owns this repo (`hassan91199`). A
+  plain `git push` fails with a misleading "Repository not found" instead of
+  pointing at the fix. Always prefix with the matching wrapper:
+  `as-hassan-personal git push origin main` (same pattern for any `gh`
+  write command). Full multi-account setup:
+  `~/dev/projs/github-hassan91199/personal-docs/docs/git-github-auth.md`.
+  This applies regardless of which coding agent is driving the command.
 - If the work is tracked by a ClickUp ticket, the branch is named `cf-<N>`
   matching that ticket's **actual** number — never invent the "next
   sequential number" as a branch name when no ticket backs it (CloakMotion
