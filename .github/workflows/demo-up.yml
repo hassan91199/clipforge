@@ -5,7 +5,7 @@ name: demo-up
 # frontend, Cloudflare DNS - then smoke-tests it. Pair with demo-down.yml to
 # tear it all back down.
 #
-# One-time setup (see .docs/cf34_aws_demo_handoff.md for the full checklist):
+# One-time setup:
 #   secrets.AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY   IAM user for CI
 #   secrets.CLOUDFLARE_API_TOKEN                        DNS-edit scoped token
 #   vars.AWS_REGION                                     e.g. us-east-1

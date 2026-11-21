@@ -121,23 +121,28 @@ a real browser (`sh scripts/browser_test.sh`), and the container gate for env
 parity. See [AGENTS.md](AGENTS.md) for the testing conventions and the
 test-first workflow every change follows.
 
-## Public demo deployment (AWS App Runner)
+## Deployment (on demand, not kept running)
 
-The public demo runs the same Docker image on AWS App Runner (0.25 vCPU /
-1 GB, ~$5/mo ceiling) with visitors bringing their own API keys — no operator
-secrets are deployed, YouTube publishing is excluded from the demo path, and
-a daily run cap (S3 counter) bounds abuse. Infrastructure is Terraform:
+ClipForge is built to deploy to AWS from GitHub Actions and is brought up only when needed, so there is no
+public live link. Infrastructure is one Terraform setup in `infra/`:
 
-- `infra/modules/quota` — S3 counter bucket + lifecycle (LocalStack-testable)
-- `infra/modules/service` — App Runner service, autoscaling, IAM
-- CI validates the LocalStack-supported parts on every change; `terraform
-  validate` + `fmt` cover the rest:
+- `infra/modules/ec2_api`: the FastAPI backend on an EC2 instance with Caddy in front (Caddy gets its own
+  Let's Encrypt certificate; no managed proxy sits in the request path, which keeps the multi-minute SSE
+  progress stream alive)
+- `infra/modules/frontend`: the static-exported Next.js frontend on S3 and CloudFront
+- `infra/modules/service`: the Streamlit BYO-keys demo on AWS App Runner
+- `infra/modules/quota`: the S3 counter behind the demo's daily run cap
+- DNS records on Cloudflare, created and removed in the same apply
+
+Two manual, approval-gated workflows run it: `demo-up` (build the image, push to ECR, apply Terraform,
+smoke-test) and `demo-down` (destroy everything). CI checks the LocalStack-supported parts on every change,
+plus `terraform validate` and `fmt`:
 
 ```bash
 sh scripts/infra_localstack.sh   # LocalStack gate (fmt + validate + apply quota)
+sh scripts/infra_plan_real.sh    # read-only real `terraform plan` against your own AWS account
 ```
 
-Deploys are manual and approval-gated via the `deploy` GitHub Actions
-workflow (build → ECR push → terraform apply → health-check smoke); see
-`.docs/cf16_deployment_research.md` for the cost analysis and option
-comparison.
+The real-plan script needs your own AWS profile and Cloudflare token (see the comments at its top).
+Visitors to a running demo bring their own API keys, no operator secrets are deployed, and YouTube
+publishing is excluded from the demo path.

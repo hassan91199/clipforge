@@ -36,7 +36,7 @@ jobs:
           # format (the demo_service module) even while refreshing state
           # before a destroy plan, so it has to look like a real ECR image
           # URI.
-          TF_VAR_image_uri: 646174062599.dkr.ecr.us-east-1.amazonaws.com/clipforge:unused
+          TF_VAR_image_uri: 123456789012.dkr.ecr.us-east-1.amazonaws.com/clipforge:unused
           TF_VAR_frontend_bucket_name: ${{ vars.FRONTEND_BUCKET_NAME }}
           TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
           TF_VAR_api_domain_name: ${{ vars.API_DOMAIN_NAME }}

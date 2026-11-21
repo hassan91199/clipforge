@@ -9,18 +9,18 @@
 #
 # Requires: an `aws configure` profile named "clipforge" with the
 # clipforge-deploy credentials, the Cloudflare token at
-# ~/.cloudflare-tokens/clipforge, and `gh` authenticated as a repo admin
+# ~/.cloudflare-tokens/clipforge (or CLOUDFLARE_API_TOKEN set), and `gh` authenticated as a repo admin (set GH_CMD to wrap it)
 # (to read the production environment's vars - never its secrets).
 set -e
 cd "$(dirname "$0")/../infra"
 
 REPO=hassan91199/clipforge
-CLOUDFLARE_TOKEN=$(cat ~/.cloudflare-tokens/clipforge)
+CLOUDFLARE_TOKEN=${CLOUDFLARE_API_TOKEN:-$(cat ~/.cloudflare-tokens/clipforge)}
 AWS_ACCOUNT_ID=$(AWS_PROFILE=clipforge aws sts get-caller-identity --query Account --output text)
 IMAGE_TAG=$(AWS_PROFILE=clipforge aws ecr describe-images --repository-name clipforge --region us-east-1 \
     --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
 
-VARS_JSON=$(as-hassan-personal gh variable list --repo "$REPO" --env production --json name,value)
+VARS_JSON=$(${GH_CMD:-gh} variable list --repo "$REPO" --env production --json name,value)
 var() {
     echo "$VARS_JSON" | python3 -c "
 import sys, json
